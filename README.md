@@ -11,9 +11,10 @@ Este es una aplicacion que permite a los usuarios a localizar las zonas turistic
 - SDK de Android / iOS configurado
 
 ## Instalación
-
    git clone https://github.com/FMezaC/alpha_Trekk.git
-## Arquitectuta
+   
+## Arquitectura
+```text
 lib/
 ├── main.dart
 ├── app_theme.dart
