@@ -1,16 +1,24 @@
 # alpha_treck
 
-A new Flutter project.
+Este es una aplicacion que permite a los usuarios a localizar las zonas turisticas poco conocidas, ademas de poder permiter ver los servicios disponibles, horarios y otros eventos relacionados al turismo.
 
-## Getting Started
+## Proyecto de fines academicos
 
-This project is a starting point for a Flutter application.
+## Requisitos
+- Flutter: 3.35.6
+- Dart: 3.9.2
+- Android Studio o VSCode (con el plugin de Flutter)
+- SDK de Android / iOS configurado
 
-A few resources to get you started if this is your first Flutter project:
+## Instalación
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+   git clone https://github.com/FMezaC/alpha_Trekk.git
+## Arquitectuta
+lib/
+├── main.dart
+├── app_theme.dart
+├── models/
+├── presentation/
+├── utils/
+├── widgets/
+└── services/
