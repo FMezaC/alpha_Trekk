@@ -1,6 +1,6 @@
 import 'package:alpha_treck/presentation/home/home_page.dart';
 import 'package:alpha_treck/presentation/iteneraries/itenerarie_page.dart';
-import 'package:alpha_treck/presentation/profile/profile_page.dart';
+import 'package:alpha_treck/presentation/login/start_page.dart';
 import 'package:alpha_treck/presentation/routes/routes_page.dart';
 import 'package:alpha_treck/presentation/settings/settings_page.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +23,8 @@ class CustomBottomNavBar extends StatelessWidget {
         page = const ItenerariePage();
         break;
       case 3:
-        page = const ProfilePage();
+        //page = const ProfilePage();
+        page = const StartPage();
         break;
       case 4:
         page = const SettingsPage();
