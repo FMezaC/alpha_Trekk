@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "898204568740",
+    "project_id": "alphatrekk-b2721",
+    "storage_bucket": "alphatrekk-b2721.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:898204568740:android:88b3e1f8f9d903bd41aa31",
+        "android_client_info": {
+          "package_name": "com.example.alpha_treck"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "898204568740-8ucv3nq4dkqh7a8rbpsbu59ia45nup6i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpRiXqik7GYAP7yAiCmvRUPxumx4lsqoo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "898204568740-8ucv3nq4dkqh7a8rbpsbu59ia45nup6i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

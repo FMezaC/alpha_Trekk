@@ -1,5 +1,6 @@
 import 'package:alpha_treck/models/zone_model.dart';
 import 'package:alpha_treck/presentation/home/zone_detail_page.dart';
+import 'package:alpha_treck/repositories/places_repository.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:alpha_treck/presentation/home/zone_card.dart';
 import 'package:flutter/material.dart';
@@ -16,13 +17,49 @@ class HomePage extends StatelessWidget {
           IconButton(icon: const Icon(Icons.account_circle), onPressed: () {}),
         ],
       ),
-      body: _BodyView(),
+      body: const _BodyView(),
       bottomNavigationBar: CustomBottomNavBar(),
     );
   }
 }
 
-class _BodyView extends StatelessWidget {
+class _BodyView extends StatefulWidget {
+  const _BodyView({super.key});
+
+  @override
+  State<_BodyView> createState() => _BodyViewState();
+}
+
+class _BodyViewState extends State<_BodyView> {
+  final PlacesRepository _repository = PlacesRepository();
+
+  List<Zone> listZones = [];
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserLocation();
+  }
+
+  Future<void> _loadUserLocation() async {
+    try {
+      // El repositorio ya obtiene la ubicación
+      final result = await _repository.getZones();
+
+      setState(() {
+        listZones = result;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = "Error cargando zonas: $e";
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -32,27 +69,18 @@ class _BodyView extends StatelessWidget {
           children: [
             const SizedBox(height: 10),
 
-            // TextField de búsqueda
             TextField(
-              //autofocus: true,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 hintText: "Buscar zona...",
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
                 ),
               ),
             ),
 
             const SizedBox(height: 10),
 
-            // Filtros tipo badges (scroll horizontal)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -69,20 +97,31 @@ class _BodyView extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // Lista de zonas (ahora solo Children del ListView)
-            ...listZones.map((zone) {
-              return ZoneCard(
-                zone: zone,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (buil) => ZoneDetailPage(zone: zone),
-                    ),
-                  );
-                },
-              );
-            }), //.toList(),
+            if (isLoading) const Center(child: CircularProgressIndicator()),
+
+            if (!isLoading && errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 16),
+                ),
+              ),
+
+            if (!isLoading && errorMessage == null)
+              ...listZones.map((zone) {
+                return ZoneCard(
+                  zone: zone,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (buil) => ZoneDetailPage(zone: zone),
+                      ),
+                    );
+                  },
+                );
+              }).toList(),
           ],
         ),
       ),
@@ -97,13 +136,7 @@ class _BodyView extends StatelessWidget {
         color: Colors.blueAccent,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          //fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(label, style: const TextStyle(color: Colors.white)),
     );
   }
 }
