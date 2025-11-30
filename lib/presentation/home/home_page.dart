@@ -32,24 +32,47 @@ class _BodyView extends StatefulWidget {
 
 class _BodyViewState extends State<_BodyView> {
   final PlacesRepository _repository = PlacesRepository();
+  final ScrollController _scrollController = ScrollController();
 
-  List<Zone> listZones = [];
+  Set<String> selectedFilters = {};
+  final Map<String, String> filterMap = {
+    "Museos": "museum",
+    "Parques": "park",
+    "Restaurantes": "restaurant",
+    "Hoteles": "lodging",
+    "Servicios": "store",
+    "Camping": "campground",
+  };
+
+  List<Zone> allZones = [];
+  List<Zone> visibleZones = [];
+  int page = 1;
+  int itemsPerPage = 10;
+
   bool isLoading = true;
+  bool isLoadingMore = false;
   String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadUserLocation();
+    _loadZones();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        _loadMore();
+      }
+    });
   }
 
-  Future<void> _loadUserLocation() async {
+  Future<void> _loadZones() async {
     try {
-      // El repositorio ya obtiene la ubicación
       final result = await _repository.getZones();
 
       setState(() {
-        listZones = result;
+        allZones = result;
+        visibleZones = result.take(itemsPerPage).toList();
         isLoading = false;
       });
     } catch (e) {
@@ -60,15 +83,53 @@ class _BodyViewState extends State<_BodyView> {
     }
   }
 
+  Future<void> _loadMore() async {
+    if (isLoadingMore) return;
+
+    setState(() => isLoadingMore = true);
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    List<Zone> sourceList;
+
+    // si hay filtros, paginar sobre los filtrados
+    if (selectedFilters.isNotEmpty) {
+      sourceList = allZones.where((zone) {
+        return zone.types.any((t) => selectedFilters.contains(t));
+      }).toList();
+    } else {
+      sourceList = allZones;
+    }
+
+    final start = visibleZones.length;
+    final end = start + itemsPerPage;
+
+    if (start >= sourceList.length) {
+      setState(() => isLoadingMore = false);
+      return;
+    }
+
+    setState(() {
+      visibleZones.addAll(
+        sourceList.sublist(
+          start,
+          end > sourceList.length ? sourceList.length : end,
+        ),
+      );
+      isLoadingMore = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: ListView(
+        child: Column(
           children: [
             const SizedBox(height: 10),
 
+            // BUSCADOR
             TextField(
               decoration: InputDecoration(
                 hintText: "Buscar zona...",
@@ -81,6 +142,7 @@ class _BodyViewState extends State<_BodyView> {
 
             const SizedBox(height: 10),
 
+            // FILTROS
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -97,46 +159,99 @@ class _BodyViewState extends State<_BodyView> {
 
             const SizedBox(height: 10),
 
-            if (isLoading) const Center(child: CircularProgressIndicator()),
-
-            if (!isLoading && errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
-                ),
-              ),
-
-            if (!isLoading && errorMessage == null)
-              ...listZones.map((zone) {
-                return ZoneCard(
-                  zone: zone,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (buil) => ZoneDetailPage(zone: zone),
-                      ),
-                    );
-                  },
-                );
-              }).toList(),
+            Expanded(child: _buildZoneList()),
           ],
         ),
       ),
     );
   }
 
-  Widget _filterBadge(String label) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.blueAccent,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(label, style: const TextStyle(color: Colors.white)),
+  Widget _buildZoneList() {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Text(
+          errorMessage!,
+          style: const TextStyle(color: Colors.red, fontSize: 16),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: visibleZones.length + 1,
+      itemBuilder: (context, index) {
+        if (index == visibleZones.length) {
+          return isLoadingMore
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : const SizedBox.shrink();
+        }
+
+        final zone = visibleZones[index];
+
+        return ZoneCard(
+          zone: zone,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (buil) => ZoneDetailPage(zone: zone)),
+            );
+          },
+        );
+      },
     );
+  }
+
+  Widget _filterBadge(String label) {
+    final String type = filterMap[label]!;
+    final bool isSelected = selectedFilters.contains(type);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            selectedFilters.remove(type);
+          } else {
+            selectedFilters.add(type);
+          }
+          _applyFilters();
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.purple : Colors.blue,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label, style: const TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  void _applyFilters() {
+    setState(() {
+      // Si no hay filtros, mostrar todo nuevamente
+      if (selectedFilters.isEmpty) {
+        visibleZones = allZones.take(itemsPerPage).toList();
+        page = 1;
+        return;
+      }
+
+      // Filtrar por tipos
+      final filtered = allZones.where((zone) {
+        return zone.types.any((t) => selectedFilters.contains(t));
+      }).toList();
+
+      // Reiniciar paginación con el resultado filtrado
+      visibleZones = filtered.take(itemsPerPage).toList();
+      page = 1;
+    });
   }
 }

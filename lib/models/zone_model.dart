@@ -9,6 +9,9 @@ class Zone {
   final bool favorite;
   final bool saved;
   final String openingHours;
+  final List<String> types;
+  final double latitude;
+  final double longitude;
 
   Zone({
     required this.id,
@@ -16,10 +19,13 @@ class Zone {
     required this.description,
     this.imageUrl,
     this.rating = 4.0,
-    this.distance = 0.0,
+    required this.distance,
     this.isOpen = false,
     this.favorite = false,
     this.saved = false,
-    this.openingHours = "",
+    required this.openingHours,
+    required this.types,
+    required this.latitude,
+    required this.longitude,
   });
 }

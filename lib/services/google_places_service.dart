@@ -7,12 +7,13 @@ class GooglePlacesService {
 
   // Tipos puramente turísticos (filtrados correctamente)
   static const List<String> tipos = [
-    'tourist_attraction',
+    'touristSpot',
+    'campground',
     'park',
     'museum',
-    'campground',
     'natural_feature',
     'church',
+    'zoo',
   ];
 
   Future<List<Zone>> fetchNearbyZones(double lat, double lng) async {
@@ -23,7 +24,7 @@ class GooglePlacesService {
       final url = Uri.parse(
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
         '?location=$lat,$lng'
-        '&radius=10000'
+        '&radius=8000'
         '&type=$tipo'
         '&key=$apiKey',
       );
@@ -54,6 +55,9 @@ class GooglePlacesService {
             isOpen: place["opening_hours"]?["open_now"] ?? false,
             openingHours: place["business_status"] ?? "",
             distance: 0,
+            types: List<String>.from(place["types"] ?? []),
+            latitude: place["geometry"]["location"]["lat"],
+            longitude: place["geometry"]["location"]["lng"],
           ),
         );
       }

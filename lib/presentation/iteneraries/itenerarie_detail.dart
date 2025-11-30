@@ -1,20 +1,87 @@
-import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
+import 'package:alpha_treck/services/attractions_service.dart';
 
 class ItenerarieDetail extends StatefulWidget {
-  const ItenerarieDetail({super.key});
+  final List<Map<String, dynamic>> attractions;
+  final String? nextPageToken;
+  final String destinationName;
+  final String destinationImg;
+
+  const ItenerarieDetail({
+    super.key,
+    required this.attractions,
+    required this.nextPageToken,
+    required this.destinationName,
+    required this.destinationImg,
+  });
 
   @override
-  State<ItenerarieDetail> createState() => _ItenerarieDetailState();
+  _ItenerarieDetailState createState() => _ItenerarieDetailState();
 }
 
 class _ItenerarieDetailState extends State<ItenerarieDetail> {
+  late List<Map<String, dynamic>> attractions;
+  bool isLoading = false;
+  String? nextPageToken;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    attractions = widget.attractions;
+    nextPageToken = widget.nextPageToken;
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels ==
+          _scrollController.position.maxScrollExtent) {
+        // Cuando llegamos al final de la lista, cargamos más atracciones
+        loadMoreAttractions();
+      }
+    });
+  }
+
+  // Método para cargar más atracciones cuando el usuario llega al final de la lista
+  Future<void> loadMoreAttractions() async {
+    if (isLoading || nextPageToken == null)
+      return; // No hacer nada si ya está cargando o no hay más páginas
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final attractionService = AttractionsPlacesService();
+      final response = await attractionService.fetchNearbyTouristAttractions(
+        lat: 0.0, // Puedes usar coordenadas reales
+        lng: 0.0, // Puedes usar coordenadas reales
+        radius: 10000, // El radio de búsqueda
+        nextPageToken: nextPageToken, // Usar el token de la siguiente página
+      );
+
+      setState(() {
+        attractions.addAll(
+          response['places'],
+        ); // Añadir las nuevas atracciones a la lista existente
+        nextPageToken =
+            response['nextPageToken']; // Actualizamos el nextPageToken
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error al cargar más atracciones: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Itinerario")),
       bottomNavigationBar: CustomBottomNavBar(currentIndex: 2),
       body: SingleChildScrollView(
+        controller: _scrollController, // Usamos el ScrollController único
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -24,6 +91,10 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
             const SizedBox(height: 25),
             _estimationsSection(),
             const SizedBox(height: 40),
+            if (isLoading)
+              const Center(
+                child: CircularProgressIndicator(),
+              ), // Indicador de carga
           ],
         ),
       ),
@@ -36,10 +107,16 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
         SizedBox(
           width: double.infinity,
           height: 200,
-          child: Image.network(
-            "https://urbanistas.lat/wp-content/uploads/2020/10/andina_980x980.png",
-            fit: BoxFit.cover,
-          ),
+          //child: Image.asset("assets/image01.png", fit: BoxFit.cover),
+          child: widget.destinationImg != null
+              ? Image.network(
+                  widget.destinationImg,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset("assets/image01.png", fit: BoxFit.cover);
+                  },
+                )
+              : Image.asset("assets/image01.png", fit: BoxFit.cover),
         ),
         Positioned(
           bottom: 12,
@@ -47,11 +124,12 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: Colors.white.withOpacity(0.9),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Text(
-              "Montaña 7 colores",
+            child: Text(
+              //"Montaña 7 colores",
+              widget.destinationName,
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -69,13 +147,17 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
           border: Border(left: BorderSide(color: Colors.blueAccent, width: 2)),
         ),
         child: Column(
-          children: List.generate(4, (index) => _placeItem(index + 1)),
+          // Usamos widget.attractions para acceder a las atracciones
+          children: List.generate(attractions.length, (index) {
+            var attraction = attractions[index];
+            return _placeItem(attraction, index + 1);
+          }),
         ),
       ),
     );
   }
 
-  Widget _placeItem(int number) {
+  Widget _placeItem(Map<String, dynamic> attraction, int number) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Row(
@@ -84,7 +166,7 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              "https://urbanistas.lat/wp-content/uploads/2020/10/andina_980x980.png",
+              attraction['photoUrl'] ?? "https://via.placeholder.com/150",
               width: 60,
               height: 60,
               fit: BoxFit.cover,
@@ -94,18 +176,21 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
           const SizedBox(width: 12),
 
           // Texto
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Nombre Zona",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  attraction['name'] ?? "Sin nombre",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  "Pequeña descripcion para los viajeros",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  attraction['vicinity'] ?? "Dirección desconocida",
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),

@@ -25,15 +25,15 @@ class CustomBottomNavBar extends StatelessWidget {
         page = const ItenerariePage();
         break;
       case 3:
+        page = const ProfilePage();
+        break;
+      case 4:
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          page = const ProfilePage();
+          page = const SettingsPage();
         } else {
           page = const StartPage();
         }
-        break;
-      case 4:
-        page = const SettingsPage();
         break;
       default:
         page = const HomePage();

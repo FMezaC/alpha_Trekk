@@ -1,6 +1,6 @@
 import 'dart:io';
+import 'package:alpha_treck/presentation/settings/settings_page.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
-import 'package:alpha_treck/presentation/profile/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:alpha_treck/services/users/user_service.dart';
 import 'package:alpha_treck/models/user_model.dart';
@@ -71,9 +71,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
     setState(() => loading = true);
 
-    String profileUrl = ""; // Por defecto vacío
+    String profileUrl = "";
     if (profileImage != null) {
-      // Subir foto solo si existe actualizar plan para usar esta opcion
+      // Subir foto solo si existe, actualizar plan para usar esta opcion
       //profileUrl = await userService.uploadProfileImage(profileImage!);
     }
 
@@ -91,7 +91,7 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => loading = false);
 
     if (result is String) {
-      print(result);
+      //print(result);
       _mostrarMensaje(result);
       return;
     }
@@ -99,7 +99,7 @@ class _RegisterPageState extends State<RegisterPage> {
     if (result is UserModel) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ProfilePage()),
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
       );
     }
   }
@@ -225,7 +225,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // WIDGET DE INPUT MODERNO
+  // WIDGET DE INPUT
   Widget _input(
     String label,
     String hint,

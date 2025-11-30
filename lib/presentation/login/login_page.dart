@@ -1,4 +1,4 @@
-import 'package:alpha_treck/presentation/profile/profile_page.dart';
+import 'package:alpha_treck/presentation/settings/settings_page.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:alpha_treck/models/login_model.dart';
@@ -38,7 +38,7 @@ class _LoginState extends State<Login> {
       if (user != null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const ProfilePage()),
+          MaterialPageRoute(builder: (_) => const SettingsPage()),
         );
       }
     } catch (e) {
