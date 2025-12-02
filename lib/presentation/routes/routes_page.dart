@@ -4,7 +4,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/google_places_service.dart';
 import '../../models/zone_model.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:ui' as ui;
 import 'circular_marker.dart';
 
 class RoutesPage extends StatefulWidget {
@@ -66,19 +65,28 @@ class _RoutesPageState extends State<RoutesPage> {
     return await Geolocator.getCurrentPosition();
   }
 
+  int page = 0;
+  int itemsPerPage = 10;
+  bool isLoading = false;
   Future<void> _loadZones() async {
     if (_currentPosition == null) return;
+    if (isLoading) return;
 
-    final zones = await _placesService.fetchNearbyZones(
-      _currentPosition!.latitude,
-      _currentPosition!.longitude,
-    );
-
+    isLoading = true;
+    final zones = await _placesService
+        .fetchNearbyZones(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+        )
+        .first;
     //print("Zonas cargadas: ${zones.map((z) => z.name).toList()}");
     setState(() {
       allZones = zones;
       _updateMarkers(); // aplica filtros visuales si los hay
     });
+
+    isLoading = false;
+    page++;
   }
 
   void _checkDistanceAndReload(Position newPos) {

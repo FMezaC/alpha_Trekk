@@ -1,17 +1,34 @@
+import 'package:alpha_treck/repositories/favorites_repository.dart';
+import 'package:alpha_treck/repositories/saved_repository.dart';
 import 'package:flutter/material.dart';
 import '../../models/zone_model.dart';
 import '../../app_theme.dart';
 
-class ZoneCard extends StatelessWidget {
+class ZoneCard extends StatefulWidget {
   final Zone zone;
   final VoidCallback onTap;
+  final String userId;
+  final FavoritesRepository favoriteRepo;
+  final SavedRepository savedRepo;
 
-  const ZoneCard({super.key, required this.zone, required this.onTap});
+  const ZoneCard({
+    super.key,
+    required this.zone,
+    required this.onTap,
+    required this.userId,
+    required this.favoriteRepo,
+    required this.savedRepo,
+  });
+  @override
+  State<ZoneCard> createState() => _ZoneCardState();
+}
 
+class _ZoneCardState extends State<ZoneCard> {
   @override
   Widget build(BuildContext context) {
+    //final favoriteRepo = FavoritesRepository();
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         padding: const EdgeInsets.all(16),
@@ -35,7 +52,7 @@ class ZoneCard extends StatelessWidget {
               children: [
                 _buildImage(),
                 const SizedBox(width: 12),
-                _buildInfoSection(),
+                _buildInfoSection(context),
               ],
             ),
 
@@ -58,7 +75,7 @@ class ZoneCard extends StatelessWidget {
                     const Icon(Icons.train, size: 16, color: Colors.grey),
                     const SizedBox(width: 6),
                     Text(
-                      "${zone.distance} km",
+                      "${widget.zone.distance} km",
                       style: const TextStyle(fontSize: 13),
                     ),
                   ],
@@ -110,7 +127,7 @@ class ZoneCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(BuildContext context) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +139,7 @@ class ZoneCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  zone.name,
+                  widget.zone.name,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -132,16 +149,47 @@ class ZoneCard extends StatelessWidget {
               ),
               Row(
                 children: [
-                  Icon(
-                    Icons.favorite,
-                    color: (zone.favorite) ? Colors.purple : grayDark,
-                    size: 20,
+                  // seccion de favoritos
+                  IconButton(
+                    icon: Icon(
+                      Icons.favorite,
+                      color: widget.zone.favorite ? Colors.purple : grayDark,
+                      size: 20,
+                    ),
+                    onPressed: () async {
+                      final newState = !widget.zone.favorite;
+                      setState(() {
+                        widget.zone.favorite = newState; // Cambia estado local
+                      });
+                      await widget.favoriteRepo.toggleFavorite(
+                        widget.zone,
+                        widget.userId,
+                        newState,
+                      ); // Actualiza Firebase
+                      (context as Element).markNeedsBuild(); // Fuerza redraw
+                    },
                   ),
                   const SizedBox(width: 6),
-                  Icon(
-                    Icons.bookmark,
-                    color: (zone.saved) ? Colors.purple : grayDark,
-                    size: 20,
+                  // seccion de guardar
+                  IconButton(
+                    icon: Icon(
+                      Icons.bookmark,
+                      color: widget.zone.saved ? Colors.purple : grayDark,
+                      size: 20,
+                    ),
+                    onPressed: () async {
+                      final newSaved = !widget.zone.saved;
+                      setState(() {
+                        widget.zone.saved = newSaved;
+                      });
+                      // widget.zone.saved = !widget.zone.saved;
+                      await widget.savedRepo.toggleSaved(
+                        widget.zone,
+                        widget.userId,
+                        newSaved,
+                      );
+                      (context as Element).markNeedsBuild();
+                    },
                   ),
                 ],
               ),
@@ -150,7 +198,7 @@ class ZoneCard extends StatelessWidget {
 
           const SizedBox(height: 2),
           Text(
-            zone.description,
+            widget.zone.description,
             style: const TextStyle(fontSize: 13, color: Colors.grey),
           ),
           Row(
@@ -158,7 +206,7 @@ class ZoneCard extends StatelessWidget {
               Icon(Icons.lock_clock, color: grayDark, size: 20),
               const SizedBox(width: 6),
               Text(
-                zone.openingHours,
+                widget.zone.openingHours,
                 style: const TextStyle(fontSize: 15, color: grayDark),
               ),
             ],
@@ -176,11 +224,11 @@ class ZoneCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         color: Colors.grey[200],
       ),
-      child: zone.imageUrl != null
+      child: widget.zone.imageUrl != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                zone.imageUrl!,
+                widget.zone.imageUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.broken_image, size: 20),
@@ -194,11 +242,11 @@ class ZoneCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: zone.isOpen ? Colors.green[600] : Colors.red[400],
+        color: widget.zone.isOpen ? Colors.green[600] : Colors.red[400],
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        zone.isOpen ? "Open" : "Close",
+        widget.zone.isOpen ? "Open" : "Close",
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,

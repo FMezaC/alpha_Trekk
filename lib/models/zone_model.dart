@@ -6,8 +6,8 @@ class Zone {
   final double rating;
   final double distance;
   final bool isOpen;
-  final bool favorite;
-  final bool saved;
+  bool favorite;
+  bool saved;
   final String openingHours;
   final List<String> types;
   final double latitude;

@@ -1,7 +1,19 @@
+import 'package:alpha_treck/repositories/detail_zone_repository.dart';
 import 'package:flutter/material.dart';
 
 class RatingCard extends StatefulWidget {
-  const RatingCard({super.key});
+  final String zoneId;
+  final String userId;
+  final RatingRepository ratingRepo;
+  final double? googleRating;
+
+  const RatingCard({
+    super.key,
+    required this.zoneId,
+    required this.userId,
+    required this.ratingRepo,
+    this.googleRating,
+  });
 
   @override
   State<RatingCard> createState() => _RatingCardState();
@@ -9,7 +21,25 @@ class RatingCard extends StatefulWidget {
 
 class _RatingCardState extends State<RatingCard> {
   int selectedStars = 0;
-  final int totalStars = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRating();
+  }
+
+  Future<void> _loadUserRating() async {
+    final rating = await widget.ratingRepo.getUserRating(
+      widget.zoneId,
+      widget.userId,
+    );
+
+    if (mounted && rating != null) {
+      setState(() {
+        selectedStars = rating;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +58,6 @@ class _RatingCardState extends State<RatingCard> {
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(),
           const SizedBox(height: 20),
@@ -40,38 +69,43 @@ class _RatingCardState extends State<RatingCard> {
     );
   }
 
-  // Encabezado
   Widget _buildHeader() {
-    return Column(
-      children: const [
-        Text(
-          'Calificar zona',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        SizedBox(height: 5),
-        Text('1232 Votos', style: TextStyle(fontSize: 13, color: Colors.grey)),
-      ],
+    return StreamBuilder<Map<String, dynamic>>(
+      stream: widget.ratingRepo.getRatingStatsStream(widget.zoneId),
+      builder: (context, snapshot) {
+        final avg = snapshot.data?['average'] ?? 0.0;
+        final votes = snapshot.data?['votes'] ?? 0;
+
+        double finalRating = avg;
+        if (widget.googleRating != null && widget.googleRating! > 0) {
+          finalRating = (avg + widget.googleRating!) / 2;
+        }
+
+        return Column(
+          children: [
+            const Text(
+              'Calificar zona',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "$votes votos • ⭐ ${finalRating.toStringAsFixed(1)}",
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  // Sección de estrellas
   Widget _buildStars() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(totalStars, (index) {
+      children: List.generate(5, (i) {
         return GestureDetector(
-          onTap: () {
-            setState(() {
-              selectedStars = index + 1;
-            });
-          },
+          onTap: () => setState(() => selectedStars = i + 1),
           child: Icon(
-            index < selectedStars ? Icons.star : Icons.star_border,
-            color: index < selectedStars ? Colors.purple : Colors.grey.shade400,
+            i < selectedStars ? Icons.star : Icons.star_border,
+            color: i < selectedStars ? Colors.purple : Colors.grey.shade400,
             size: 32,
           ),
         );
@@ -79,29 +113,31 @@ class _RatingCardState extends State<RatingCard> {
     );
   }
 
-  // Botón
   Widget _buildButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
+        onPressed: () async {
+          await widget.ratingRepo.setRating(
+            widget.zoneId,
+            widget.userId,
+            selectedStars,
+          );
+
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Calificación enviada: $selectedStars estrellas'),
-            ),
+            SnackBar(content: Text('Rating enviado: $selectedStars estrellas')),
           );
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFF8F9FB),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: const Text(
-          'Escribir Reseña',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          'Enviar Calificación',
+          style: TextStyle(color: Colors.black87),
         ),
       ),
     );

@@ -6,15 +6,47 @@ class PlacesRepository {
   final GooglePlacesService _service = GooglePlacesService();
   List<Zone>? _cache;
 
-  Future<List<Zone>> getZones() async {
-    if (_cache != null) return _cache!;
+  /// STREAM: carga zona por zona
+  Stream<List<Zone>> getZonesStream() async* {
+    if (_cache != null) {
+      yield _cache!;
+      return;
+    }
 
+    // obtener ubicación
     final pos = await _getLocation();
 
-    final zones = await _service.fetchNearbyZones(pos.latitude, pos.longitude);
+    // inicializar lista vacía
+    _cache = [];
+    yield _cache!;
 
+    // await for (final zone in _service.fetchNearbyZones(
+    //   pos.latitude,
+    //   pos.longitude,
+    // )) {
+    //   _cache!.add(zone);
+    //   // enviar copia actualizada de la lista para la UI
+    //   yield List.from(_cache!);
+    // }
+    final zones = await _service
+        .fetchNearbyZones(pos.latitude, pos.longitude)
+        .first;
     _cache = zones;
-    return zones;
+    yield _cache!;
+  }
+
+  /// PAGINACIÓN
+  Future<List<Zone>> getZonesPage(int page, int itemsPerPage) async {
+    while (_cache == null || _cache!.isEmpty) {
+      await Future.delayed(const Duration(milliseconds: 80));
+    }
+
+    final start = page * itemsPerPage;
+    final end = start + itemsPerPage;
+
+    if (start >= _cache!.length) return [];
+
+    return _cache!.sublist(start, end > _cache!.length ? _cache!.length : end);
   }
 
   Future<Position> _getLocation() async {

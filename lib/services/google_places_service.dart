@@ -16,9 +16,9 @@ class GooglePlacesService {
     'zoo',
   ];
 
-  Future<List<Zone>> fetchNearbyZones(double lat, double lng) async {
+  Stream<List<Zone>> fetchNearbyZones(double lat, double lng) async* {
     Set<String> ids = {};
-    List<Zone> zonas = [];
+    List<Zone> allZones = [];
 
     for (final tipo in tipos) {
       final url = Uri.parse(
@@ -35,15 +35,12 @@ class GooglePlacesService {
       if (data["status"] != "OK") continue;
 
       final List results = data["results"];
-
       for (var place in results) {
         final id = place["place_id"];
-
-        // evitar duplicados
         if (ids.contains(id)) continue;
         ids.add(id);
 
-        zonas.add(
+        allZones.add(
           Zone(
             id: id,
             name: place["name"] ?? "Sin nombre",
@@ -63,7 +60,7 @@ class GooglePlacesService {
       }
     }
 
-    return zonas;
+    yield allZones;
   }
 
   String _photoUrl(String ref) {

@@ -45,6 +45,8 @@ dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.4.0
 
+  #shimmir para placeholder
+  shimmer: ^3.0.0
 
   # Autocompletado de lugares: 
   flutter_google_places_sdk: ^0.4.2+1  
@@ -125,3 +127,4 @@ flutter_native_splash:
   image: assets/logo.png
   android: true
   ios: true
+
