@@ -1,3 +1,4 @@
+import 'package:alpha_treck/presentation/routes/filters_widget.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -14,34 +15,44 @@ class RoutesPage extends StatefulWidget {
 }
 
 class _RoutesPageState extends State<RoutesPage> {
-  late GoogleMapController _mapController;
+  GoogleMapController? _mapController;
   final GooglePlacesService _placesService = GooglePlacesService();
+
   List<Zone> allZones = [];
   Set<Marker> _markers = {};
   Position? _currentPosition;
 
-  // Estado para filtros seleccionados
+  // Estado de filtros
   Set<String> selectedFilters = {};
+
+  // Posición inicial
+  static const CameraPosition initialCamera = CameraPosition(
+    target: LatLng(0, 0),
+    zoom: 3,
+  );
 
   @override
   void initState() {
     super.initState();
-    _initLocationAndMap();
+    _initPosition();
   }
 
-  Future<void> _initLocationAndMap() async {
+  Future<void> _initPosition() async {
     try {
       _currentPosition = await _determinePosition();
-      await _loadZones();
 
-      // Escuchar cambios de ubicación
+      if (_mapController != null) {
+        _moveCameraToUser();
+      }
+
+      _loadZones();
       Geolocator.getPositionStream(
-        locationSettings: LocationSettings(
+        locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 200,
         ),
-      ).listen((newPosition) {
-        _checkDistanceAndReload(newPosition);
+      ).listen((newPos) {
+        _checkDistanceAndReload(newPos);
       });
     } catch (e) {
       debugPrint("Error al obtener ubicación: $e");
@@ -57,66 +68,62 @@ class _RoutesPageState extends State<RoutesPage> {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception("Permiso de ubicación denegado");
-      }
     }
 
     return await Geolocator.getCurrentPosition();
   }
 
-  int page = 0;
-  int itemsPerPage = 10;
+  void _moveCameraToUser() {
+    if (_currentPosition == null || _mapController == null) return;
+
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        14,
+      ),
+    );
+  }
+
   bool isLoading = false;
   Future<void> _loadZones() async {
-    if (_currentPosition == null) return;
-    if (isLoading) return;
+    if (_currentPosition == null || isLoading) return;
 
     isLoading = true;
+
     final zones = await _placesService
         .fetchNearbyZones(
           _currentPosition!.latitude,
           _currentPosition!.longitude,
         )
         .first;
-    //print("Zonas cargadas: ${zones.map((z) => z.name).toList()}");
-    setState(() {
-      allZones = zones;
-      _updateMarkers(); // aplica filtros visuales si los hay
-    });
 
+    allZones = zones;
+
+    final filteredZones = _filterZones(zones);
+    await _createMarkers(filteredZones);
     isLoading = false;
-    page++;
   }
 
-  void _checkDistanceAndReload(Position newPos) {
-    if (_currentPosition == null) return;
-
-    double distance = Geolocator.distanceBetween(
-      _currentPosition!.latitude,
-      _currentPosition!.longitude,
-      newPos.latitude,
-      newPos.longitude,
-    );
-
-    if (distance > 300) {
-      _currentPosition = newPos;
-      _loadZones();
+  List<Zone> _filterZones(List<Zone> zones) {
+    if (selectedFilters.isEmpty) {
+      return zones
+          .where(
+            (z) =>
+                z.types.contains('campground') ||
+                z.types.contains('tourist_attraction'),
+          )
+          .toList();
     }
-  }
 
-  void _updateMarkers() async {
-    final filteredZones = allZones.where((z) {
-      if (selectedFilters.isEmpty) {
-        return z.types.contains('campground') ||
-            z.types.contains('tourist_attraction');
-      }
+    return zones.where((z) {
       return z.types.any((t) => selectedFilters.contains(_mapTypeToFilter(t)));
     }).toList();
+  }
 
+  Future<void> _createMarkers(List<Zone> zones) async {
     Set<Marker> newMarkers = {};
 
-    for (final z in filteredZones) {
+    for (final z in zones) {
       final icon = await _getMarkerByType(z);
 
       newMarkers.add(
@@ -132,7 +139,71 @@ class _RoutesPageState extends State<RoutesPage> {
       );
     }
 
+    if (!mounted) return;
     setState(() => _markers = newMarkers);
+  }
+
+  void _checkDistanceAndReload(Position newPos) {
+    if (_currentPosition == null) return;
+
+    double distance = Geolocator.distanceBetween(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      newPos.latitude,
+      newPos.longitude,
+    );
+
+    if (distance > 300) {
+      _currentPosition = newPos;
+      _moveCameraToUser();
+      _loadZones();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Rutas"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _openFiltersModal,
+          ),
+        ],
+      ),
+
+      body: GoogleMap(
+        initialCameraPosition: initialCamera,
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        markers: _markers,
+        onMapCreated: (controller) {
+          _mapController = controller;
+          _moveCameraToUser();
+        },
+      ),
+
+      bottomNavigationBar: CustomBottomNavBar(currentIndex: 1),
+    );
+  }
+
+  void _openFiltersModal() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return FiltersWidget(
+          selectedFilters: selectedFilters,
+          onFiltersChanged: (newFilters) {
+            setState(() {
+              selectedFilters = newFilters;
+              final filtered = _filterZones(allZones);
+              _createMarkers(filtered);
+            });
+          },
+        );
+      },
+    );
   }
 
   String _mapTypeToFilter(String type) {
@@ -151,107 +222,6 @@ class _RoutesPageState extends State<RoutesPage> {
       default:
         return type;
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Rutas")),
-      body: _currentPosition == null
-          ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(
-                  _currentPosition!.latitude,
-                  _currentPosition!.longitude,
-                ),
-                zoom: 14,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              markers: _markers,
-              onMapCreated: (controller) => _mapController = controller,
-            ),
-      floatingActionButton: _buildFilterButton(),
-      bottomNavigationBar: CustomBottomNavBar(currentIndex: 1),
-    );
-  }
-
-  Widget _buildFilterButton() {
-    return FloatingActionButton(
-      backgroundColor: Colors.white,
-      child: const Icon(Icons.filter_list, color: Colors.black),
-      onPressed: _openFiltersModal,
-    );
-  }
-
-  void _openFiltersModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.filter_alt, size: 30),
-              const SizedBox(height: 10),
-              const Text(
-                "Filtros",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              _filterOption("Transporte público", Icons.directions_bus),
-              _filterOption("Atardecer y áreas verdes", Icons.wb_sunny),
-              _filterOption("Museos", Icons.museum),
-              _filterOption("Baños y duchas", Icons.wc),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _updateMarkers();
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Colors.green,
-                ),
-                child: const Text("Aplicar filtros"),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _filterOption(String label, IconData icon) {
-    bool isSelected = selectedFilters.contains(label);
-
-    return CheckboxListTile(
-      value: isSelected,
-      title: Row(
-        children: [
-          Icon(icon, color: Colors.blue),
-          const SizedBox(width: 10),
-          Text(label),
-        ],
-      ),
-      controlAffinity: ListTileControlAffinity.trailing,
-      onChanged: (value) {
-        setState(() {
-          if (value == true) {
-            selectedFilters.add(label);
-          } else {
-            selectedFilters.remove(label);
-          }
-          _updateMarkers();
-        });
-      },
-    );
   }
 
   Future<BitmapDescriptor> _getMarkerByType(Zone z) async {
@@ -292,7 +262,6 @@ class _RoutesPageState extends State<RoutesPage> {
       );
     }
 
-    // Marker por defecto
     return createCircularMarker(
       icon: Icons.place,
       backgroundColor: Colors.grey.shade200,

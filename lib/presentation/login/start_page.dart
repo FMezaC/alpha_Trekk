@@ -9,7 +9,7 @@ class StartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: CustomBottomNavBar(currentIndex: 3),
+      bottomNavigationBar: CustomBottomNavBar(currentIndex: 4),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(25),
@@ -17,14 +17,14 @@ class StartPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const CircleAvatar(
-                radius: 45,
+                radius: 60,
                 backgroundColor: Colors.blue,
-                child: Text(
-                  "F",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 45,
-                    fontWeight: FontWeight.bold,
+                child: ClipOval(
+                  child: Image(
+                    image: AssetImage("assets/logo.png"),
+                    fit: BoxFit.cover,
+                    width: 120,
+                    height: 120,
                   ),
                 ),
               ),
@@ -90,7 +90,7 @@ class StartPage extends StatelessWidget {
               ),
 
               const SizedBox(height: 30),
-              const Text("Copyright ©2025 by fmeza"),
+              const Text("Copyright ©2025 created by fmeza"),
             ],
           ),
         ),

@@ -12,4 +12,12 @@ class AuthRepository {
   Future<void> logout() {
     return _authService.signOut();
   }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+    } catch (e) {
+      throw Exception("Correo no enviado");
+    }
+  }
 }

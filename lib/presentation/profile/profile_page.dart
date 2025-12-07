@@ -1,15 +1,52 @@
+import 'package:alpha_treck/models/user_model.dart';
+import 'package:alpha_treck/presentation/profile/favorite_tab.dart';
+import 'package:alpha_treck/presentation/profile/maps_tab.dart';
+import 'package:alpha_treck/presentation/profile/places_tab.dart';
+import 'package:alpha_treck/services/users/user_service.dart';
+import 'package:alpha_treck/utils/navigation_helpers.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  bool hasUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUser();
+  }
+
+  void _checkUser() {
+    final user = FirebaseAuth.instance.currentUser?.uid;
+    if (user != null) {
+      setState(() {
+        hasUser = true;
+      });
+    } else {
+      // Redirigir al login si no hay usuario
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        navigateToLogin(context);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
-        appBar: AppBar(title: const Text("Profile")),
+        appBar: AppBar(
+          title: const Text("Profile"),
+          automaticallyImplyLeading: false,
+        ),
         bottomNavigationBar: CustomBottomNavBar(currentIndex: 3),
         body: Column(
           children: [
@@ -22,10 +59,10 @@ class ProfilePage extends StatelessWidget {
               indicatorColor: Colors.blue,
               isScrollable: true,
               tabs: const [
-                Tab(text: "VIAJES"),
                 Tab(text: "LUGARES"),
-                Tab(text: "MAPAS"),
                 Tab(text: "FAVORITOS"),
+                Tab(text: "MAPAS"),
+                //Tab(text: "VIAJES"),
                 Tab(text: "REVIEWS"),
               ],
             ),
@@ -34,10 +71,10 @@ class ProfilePage extends StatelessWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  TripsTab(),
                   PlacesTab(),
+                  FavoritesTab(),
                   MapsTab(),
-                  VehiclesTab(),
+                  //TripsTab(),
                   ReviewsTab(),
                 ],
               ),
@@ -49,60 +86,78 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------
 // HEADER
-// ------------------------------------------------------------
 class _ProfileHeader extends StatelessWidget {
+  final UserService userService = UserService();
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Imagen de fondo
-        Container(
-          height: 190,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage("assets/header.jpg"), // Cambia tu path
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
+    return FutureBuilder<UserModel?>(
+      future: userService.getUser(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 190,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-        // Avatar + nombre
-        Column(
+        final user = snapshot.data;
+
+        return Stack(
+          alignment: Alignment.center,
           children: [
-            CircleAvatar(
-              radius: 45,
-              backgroundColor: Colors.orange[400],
-              child: const Icon(Icons.person, size: 55, color: Colors.white),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "fmeza",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [
-                  Shadow(
-                    blurRadius: 4,
-                    color: Colors.black54,
-                    offset: Offset(1, 1),
-                  ),
-                ],
+            // Imagen de fondo
+            Container(
+              height: 190,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage("assets/header.jpg"),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ],
-        ),
 
-        // Botón configuración (arriba a la derecha)
-        Positioned(
-          right: 15,
-          top: 15,
-          child: IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {},
+            // Avatar + nombre
+            _avatarSection(user),
+
+            // Botón configuración (opcional)
+            // Positioned(
+            //   right: 15,
+            //   top: 15,
+            //   child: IconButton(
+            //     icon: const Icon(Icons.settings, color: Colors.white),
+            //     onPressed: () {},
+            //   ),
+            // ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _avatarSection(UserModel? user) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 45,
+          backgroundColor: Colors.orange[400],
+          child: const Icon(Icons.person, size: 55, color: Colors.white),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          user?.name ?? "Usuario",
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                blurRadius: 4,
+                color: Colors.black54,
+                offset: Offset(1, 1),
+              ),
+            ],
           ),
         ),
       ],
@@ -142,101 +197,6 @@ class TripsTab extends StatelessWidget {
             ElevatedButton(
               onPressed: () {},
               child: const Text("Crear nuevo viaje"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class PlacesTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.place, size: 120, color: Colors.blue.shade300),
-
-            const SizedBox(height: 15),
-            const Text(
-              "Lugares",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-            const Text(
-              "Cada lugar guardado se mostrará aquí",
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class MapsTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Imagen de placeholder
-            Icon(Icons.map, size: 120, color: Colors.blue.shade300),
-
-            const SizedBox(height: 15),
-            const Text(
-              "Mapas",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-            const Text(
-              "Cada mapa guardado se mostrará aquí",
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text("Agregar nuevo mapa"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class VehiclesTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Imagen de placeholder
-            Icon(Icons.favorite, size: 120, color: Colors.blue.shade300),
-
-            const SizedBox(height: 15),
-            const Text(
-              "Favoritos",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-            const Text(
-              "Aquí se mostrarán tus lugares favoritos",
-              textAlign: TextAlign.center,
             ),
           ],
         ),

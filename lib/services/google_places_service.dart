@@ -7,7 +7,13 @@ class GooglePlacesService {
 
   // Tipos puramente turísticos (filtrados correctamente)
   static const List<String> tipos = [
-    'touristSpot',
+    'art_gallery',
+    'historic_site',
+    'nature_reserve',
+    'point_of_interest',
+    'tourist_attraction',
+    'establishment',
+    'aquarium',
     'campground',
     'park',
     'museum',
@@ -24,7 +30,7 @@ class GooglePlacesService {
       final url = Uri.parse(
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
         '?location=$lat,$lng'
-        '&radius=8000'
+        '&radius=10000'
         '&type=$tipo'
         '&key=$apiKey',
       );
@@ -48,7 +54,9 @@ class GooglePlacesService {
             imageUrl: place["photos"] != null
                 ? _photoUrl(place["photos"][0]["photo_reference"])
                 : null,
-            rating: (place["rating"] ?? 4.0).toDouble(),
+            rating: place["rating"] != null
+                ? (place["rating"] as num).toDouble()
+                : 0.0,
             isOpen: place["opening_hours"]?["open_now"] ?? false,
             openingHours: place["business_status"] ?? "",
             distance: 0,

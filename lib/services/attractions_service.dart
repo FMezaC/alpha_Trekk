@@ -21,12 +21,12 @@ class AttractionsPlacesService {
     required double lat,
     required double lng,
     required int radius,
-    String? nextPageToken, // Añadido para la paginación
+    String? nextPageToken,
   }) async {
     Set<String> ids = {};
     List<Map<String, dynamic>> lugares = [];
 
-    // Iterar sobre los tipos de lugares que queremos buscar
+    // Iterar sobre los tipos de lugares
     for (final tipo in tipos) {
       final url = Uri.parse(
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
@@ -34,16 +34,17 @@ class AttractionsPlacesService {
         '&radius=$radius'
         '&type=$tipo'
         '&key=$apiKey'
-        '${nextPageToken != null ? '&pagetoken=$nextPageToken' : ''}', // Solo agregar pagetoken si no es null
+        '${nextPageToken != null ? '&pagetoken=$nextPageToken' : ''}',
       );
 
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print(data);
+        // print(data);
+        // print("llego hasta aqui");
         if (data["status"] == "OK") {
-          final List results = data["results"];
+          final List<dynamic> results = data["results"];
 
           for (var place in results) {
             final id = place["place_id"];
@@ -63,9 +64,10 @@ class AttractionsPlacesService {
                   : null,
             });
           }
-
           // Si hay un nextPageToken, incluirlo en la respuesta
           return {'places': lugares, 'nextPageToken': data['next_page_token']};
+        } else {
+          return {'places': [], 'nextPageToken': null};
         }
       } else {
         throw Exception('Failed to load places');

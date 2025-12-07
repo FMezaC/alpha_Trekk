@@ -1,3 +1,6 @@
+import 'package:alpha_treck/app_theme.dart';
+import 'package:alpha_treck/services/directions_service.dart';
+import 'package:alpha_treck/services/location_service.dart';
 import 'package:flutter/material.dart';
 import 'package:alpha_treck/models/itinerarie_model.dart';
 import 'package:alpha_treck/presentation/iteneraries/itenerarie_detail.dart';
@@ -13,13 +16,16 @@ class ItenerariePage extends StatefulWidget {
 }
 
 class _ItenerariePageState extends State<ItenerariePage> {
+  //ubicaicon actual
+  final locationService = LocationService();
   // Transporte seleccionado
-  int selectedTransport = 1;
+  int selectedTransport = 0;
+  bool isLoading = false;
 
   final List<IconData> _icons = [
-    Icons.directions_bus,
     Icons.rv_hookup,
     Icons.hiking,
+    Icons.pedal_bike,
   ];
 
   ItinerarieModel? selectedDestination;
@@ -30,6 +36,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
     return Scaffold(
       appBar: AppBar(title: const Text("Itinerarios")),
       bottomNavigationBar: CustomBottomNavBar(currentIndex: 2),
+      backgroundColor: white,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,7 +65,21 @@ class _ItenerariePageState extends State<ItenerariePage> {
                     hint: "Huamanga",
                     icon: Icons.location_on_outlined,
                     enableCurrentLocation: true,
-                    onSelected: (value) {
+                    onSelected: (value) async {
+                      if (value != null && value.isCurrentLocation) {
+                        String? address = await locationService
+                            .getCurrentLocation();
+                        if (locationService.lat != null &&
+                            locationService.lng != null) {
+                          selectedStart = ItinerarieModel(
+                            description: address ?? "ubicacion actual",
+                            placeId: "",
+                            lat: locationService.lat,
+                            lng: locationService.lng,
+                            photoUrl: "",
+                          );
+                        }
+                      }
                       selectedStart = value;
                     },
                   ),
@@ -90,7 +111,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
     );
   }
 
-  // --------- TIPO DE TRANSPORTE ---------
+  // TIPO DE TRANSPORTE
   Widget _transportType() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,6 +121,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 10),
+        // Contenedor exterior con borde
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
@@ -110,12 +132,20 @@ class _ItenerariePageState extends State<ItenerariePage> {
             children: List.generate(_icons.length, (index) {
               return Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() {
-                    selectedTransport = index;
-                  }),
-                  child: _transportOption(
-                    _icons[index],
-                    selected: selectedTransport == index,
+                  onTap: () {
+                    setState(() {
+                      selectedTransport = index;
+                    });
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    color: selectedTransport == index
+                        ? Colors.blueAccent.withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    child: _transportOption(
+                      _icons[index],
+                      selected: selectedTransport == index,
+                    ),
                   ),
                 ),
               );
@@ -129,7 +159,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
   Widget _transportOption(IconData icon, {bool selected = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
-      color: selected ? Colors.blueAccent.withOpacity(0.15) : null,
+      color: selected ? Colors.blueAccent.withValues(alpha: 0.15) : null,
       child: Center(
         child: Icon(icon, color: selected ? Colors.blueAccent : Colors.grey),
       ),
@@ -150,7 +180,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
           child: TextField(
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              hintText: "5",
+              hintText: " 5 ",
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -165,7 +195,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _analyzeRoute,
+        onPressed: isLoading ? null : _analyzeRoute,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -173,55 +203,115 @@ class _ItenerariePageState extends State<ItenerariePage> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        child: const Text(
-          "Analizar Ruta",
-          style: TextStyle(fontSize: 16, color: Colors.white),
-        ),
+        child: isLoading
+            ? SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                "Analizar Ruta",
+                style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
       ),
     );
   }
 
   //obtener coordenas de origen y destino
   Future<void> _analyzeRoute() async {
-    print("boton precionado: $selectedStart");
-    if (selectedStart != null && selectedDestination != null) {
-      final latStart = selectedStart!.lat ?? 0.0;
-      final lngStart = selectedStart!.lng ?? 0.0;
-      final latEnd = selectedDestination!.lat ?? 0.0;
-      final lngEnd = selectedDestination!.lng ?? 0.0;
+    //print("boton precionado: $selectedStart");
+    if (selectedStart == null || selectedDestination == null) return;
+    setState(() {
+      isLoading = true;
+    });
 
-      // Calcula el radio
-      int radius = 10000;
-      if (selectedTransport == 1) {
-        radius = 12000;
-      } else if (selectedTransport == 2) {
-        radius = 3000;
-      }
+    try {
+      if (selectedStart != null && selectedDestination != null) {
+        final latStart = selectedStart!.lat ?? 0.0;
+        final lngStart = selectedStart!.lng ?? 0.0;
+        final latEnd = selectedDestination!.lat ?? 0.0;
+        final lngEnd = selectedDestination!.lng ?? 0.0;
 
-      // Llamar a AttractionService
-      final attractionService = AttractionsPlacesService();
-      var response = await attractionService.fetchNearbyTouristAttractions(
-        lat: (latStart + latEnd) / 2,
-        lng: (lngStart + lngEnd) / 2,
-        radius: radius,
-      );
+        //associas transporte
+        String mode;
+        switch (selectedTransport) {
+          case 0:
+            mode = 'driving';
+            break;
+          case 1:
+            mode = 'walking';
+            break;
+          case 2:
+            mode = 'bicycling';
+            break;
+          default:
+            mode = 'driving';
+            break;
+        }
 
-      // Pasar los lugares y el nextPageToken
-      final attractions = response['places'];
-      final nextPageToken = response['nextPageToken'];
+        //servicio de directions
+        final directionsService = DirectionsService();
+        var route = await directionsService.getRoute(
+          startLat: latStart,
+          startLng: lngStart,
+          endLat: latEnd,
+          endLng: lngEnd,
+          mode: mode,
+        );
 
-      // Navegar a la siguiente página con los resultados
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ItenerarieDetail(
-            attractions: attractions,
-            nextPageToken: nextPageToken,
-            destinationName: selectedDestination!.description,
-            destinationImg: selectedDestination!.photoUrl,
+        //buscar atraciones a lo largo de la ruta
+        List<Map<String, dynamic>> attractions = [];
+        List<Map<String, dynamic>> pageTokens = [];
+        Set<String> addedPlaces = {};
+        for (var step in route) {
+          var response = await AttractionsPlacesService()
+              .fetchNearbyTouristAttractions(
+                lat: step['lat'],
+                lng: step['lng'],
+                radius: 1000,
+              );
+          if (response['places'] != null && response['places'].isNotEmpty) {
+            for (var place in response['places']) {
+              //print("Place recibido: $place");
+              if (place != null && place.isNotEmpty) {
+                String uniqueKey =
+                    "${place['name']}_${place['latitude']}_${place['longitude']}";
+                if (!addedPlaces.contains(uniqueKey)) {
+                  attractions.add(place);
+                  addedPlaces.add(uniqueKey);
+                }
+              }
+            }
+          }
+
+          if (response['nextPageToken'] != null) {
+            pageTokens.add({
+              "lat": step['lat'],
+              "lng": step['lng'],
+              "token": response['nextPageToken'],
+            });
+          }
+        }
+
+        isLoading = false;
+        // Navegar a la siguiente página con los resultados
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ItenerarieDetail(
+              attractions: attractions,
+              nextPageTokens: pageTokens,
+              destinationName: selectedDestination!.description,
+              destinationImg: selectedDestination!.photoUrl ?? "",
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      print('error durante analizis$e');
     }
   }
 }

@@ -111,4 +111,17 @@ class UserService {
       throw Exception("Error al actualizar el perfil: $e");
     }
   }
+
+  // Obtener datos completos del usuario desde Firestore
+  Future<UserModel?> getUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    if (!doc.exists) return null;
+
+    final data = doc.data()!;
+    data['id'] = doc.id;
+    return UserModel.fromMap(data);
+  }
 }

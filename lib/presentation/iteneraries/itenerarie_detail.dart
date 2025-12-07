@@ -1,104 +1,210 @@
+import 'package:alpha_treck/app_theme.dart';
+import 'package:alpha_treck/presentation/iteneraries/tab_estimations.dart';
+import 'package:alpha_treck/presentation/iteneraries/tab_place_item.dart';
+import 'package:alpha_treck/presentation/profile/offline_map_screen.dart';
+import 'package:alpha_treck/services/itinerary_service.dart';
 import 'package:flutter/material.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:alpha_treck/services/attractions_service.dart';
 
 class ItenerarieDetail extends StatefulWidget {
   final List<Map<String, dynamic>> attractions;
-  final String? nextPageToken;
+  final List<Map<String, dynamic>> nextPageTokens;
   final String destinationName;
   final String destinationImg;
 
   const ItenerarieDetail({
     super.key,
     required this.attractions,
-    required this.nextPageToken,
+    required this.nextPageTokens,
     required this.destinationName,
     required this.destinationImg,
   });
 
   @override
-  _ItenerarieDetailState createState() => _ItenerarieDetailState();
+  State<ItenerarieDetail> createState() => _ItenerarieDetailState();
 }
 
 class _ItenerarieDetailState extends State<ItenerarieDetail> {
   late List<Map<String, dynamic>> attractions;
   bool isLoading = false;
-  String? nextPageToken;
+  late List<Map<String, dynamic>> nextPageTokens;
   late ScrollController _scrollController;
+  Set<String> addedAttractionIds = {};
+
+  int itemsPerPage = 10;
+  int currentMaxItems = 0;
 
   @override
   void initState() {
     super.initState();
     attractions = widget.attractions;
-    nextPageToken = widget.nextPageToken;
+    nextPageTokens = List.from(widget.nextPageTokens);
+    currentMaxItems = (attractions.length >= itemsPerPage)
+        ? itemsPerPage
+        : attractions.length;
     _scrollController = ScrollController();
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels ==
-          _scrollController.position.maxScrollExtent) {
-        // Cuando llegamos al final de la lista, cargamos más atracciones
-        loadMoreAttractions();
-      }
-    });
+    _scrollController.addListener(_scrollListener);
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 100) {
+      _loadMoreItems();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   // Método para cargar más atracciones cuando el usuario llega al final de la lista
   Future<void> loadMoreAttractions() async {
-    if (isLoading || nextPageToken == null)
-      return; // No hacer nada si ya está cargando o no hay más páginas
+    if (isLoading || nextPageTokens.isEmpty) return;
 
     setState(() {
       isLoading = true;
     });
 
-    try {
-      final attractionService = AttractionsPlacesService();
-      final response = await attractionService.fetchNearbyTouristAttractions(
-        lat: 0.0, // Puedes usar coordenadas reales
-        lng: 0.0, // Puedes usar coordenadas reales
-        radius: 10000, // El radio de búsqueda
-        nextPageToken: nextPageToken, // Usar el token de la siguiente página
-      );
+    final tokenData = nextPageTokens.removeAt(0);
+    final response = await AttractionsPlacesService()
+        .fetchNearbyTouristAttractions(
+          lat: tokenData['lat'],
+          lng: tokenData['lng'],
+          radius: 3000,
+          nextPageToken: tokenData['token'],
+        );
 
-      setState(() {
-        attractions.addAll(
-          response['places'],
-        ); // Añadir las nuevas atracciones a la lista existente
-        nextPageToken =
-            response['nextPageToken']; // Actualizamos el nextPageToken
-        isLoading = false;
-      });
-    } catch (e) {
-      print("Error al cargar más atracciones: $e");
-      setState(() {
-        isLoading = false;
+    if (response['places'] != null) {
+      attractions.addAll(response['places']);
+    }
+
+    // Si hay un nuevo token, lo guardamos
+    if (response['nextPageToken'] != null) {
+      nextPageTokens.add({
+        "lat": tokenData['lat'],
+        "lng": tokenData['lng'],
+        "token": response['nextPageToken'],
       });
     }
+
+    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Itinerario")),
-      bottomNavigationBar: CustomBottomNavBar(currentIndex: 2),
-      body: SingleChildScrollView(
-        controller: _scrollController, // Usamos el ScrollController único
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(title: Text("Itinerarios")),
+        bottomNavigationBar: CustomBottomNavBar(currentIndex: 2),
+        body: Column(
           children: [
             _headerSection(),
-            const SizedBox(height: 20),
-            _listPlacesSection(),
-            const SizedBox(height: 25),
-            _estimationsSection(),
-            const SizedBox(height: 40),
-            if (isLoading)
-              const Center(
-                child: CircularProgressIndicator(),
-              ), // Indicador de carga
+            Material(
+              color: white,
+              child: const TabBar(
+                labelColor: blackDark,
+                unselectedLabelColor: grayDark,
+                indicatorColor: Colors.blue,
+                tabs: [
+                  Tab(text: "Atracciones"),
+                  Tab(text: "Estimaciones"),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  // ATRACCIONES
+                  _buildAttractionsTab(),
+
+                  // ESTIMACIONES
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(15),
+                    child: TabEstimations(
+                      addedAttractions: attractions
+                          .where(
+                            (attr) => addedAttractionIds.contains(
+                              attr['place_id'] ?? attr['name'],
+                            ),
+                          )
+                          .toList(),
+                      onDownloadMap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => OfflineMapScreen(
+                              attractions: attractions
+                                  .where(
+                                    (attr) => addedAttractionIds.contains(
+                                      attr['place_id'] ?? attr['name'],
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAttractionsTab() {
+    return ListView.builder(
+      controller: _scrollController,
+      itemCount: 1 + currentMaxItems + (isLoading ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == 0) return const SizedBox(height: 10);
+
+        if (index >= 1 && index <= currentMaxItems) {
+          final attraction = attractions[index - 1];
+          return buildPlaceItem(attraction);
+        }
+
+        if (isLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  void _loadMoreItems() {
+    if (currentMaxItems < attractions.length) {
+      // Si hay más items locales, mostramos los siguientes
+      setState(() {
+        int remainingItems = attractions.length - currentMaxItems;
+        int nextItems = remainingItems >= itemsPerPage
+            ? itemsPerPage
+            : remainingItems;
+        currentMaxItems += nextItems;
+      });
+    } else {
+      // Si ya mostramos todos los items locales, intenta cargar más desde la API
+      loadMoreAttractions().then((_) {
+        setState(() {
+          int remainingItems = attractions.length - currentMaxItems;
+          int nextItems = remainingItems >= itemsPerPage
+              ? itemsPerPage
+              : remainingItems;
+          currentMaxItems += nextItems;
+        });
+      });
+    }
   }
 
   Widget _headerSection() {
@@ -108,7 +214,7 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
           width: double.infinity,
           height: 200,
           //child: Image.asset("assets/image01.png", fit: BoxFit.cover),
-          child: widget.destinationImg != null
+          child: widget.destinationImg.isNotEmpty
               ? Image.network(
                   widget.destinationImg,
                   fit: BoxFit.cover,
@@ -124,7 +230,7 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
@@ -138,142 +244,35 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
     );
   }
 
-  Widget _listPlacesSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: Container(
-        padding: const EdgeInsets.only(left: 10),
-        decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: Colors.blueAccent, width: 2)),
-        ),
-        child: Column(
-          // Usamos widget.attractions para acceder a las atracciones
-          children: List.generate(attractions.length, (index) {
-            var attraction = attractions[index];
-            return _placeItem(attraction, index + 1);
-          }),
-        ),
-      ),
-    );
-  }
+  Widget buildPlaceItem(Map<String, dynamic> attraction) {
+    final placeId =
+        attraction['place_id'] ?? attraction['name'] ?? UniqueKey().toString();
+    final isAdded = addedAttractionIds.contains(placeId);
+    //setState(() => addedAttractionIds.add(placeId));
 
-  Widget _placeItem(Map<String, dynamic> attraction, int number) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Row(
-        children: [
-          // Imagen
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              attraction['photoUrl'] ?? "https://via.placeholder.com/150",
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
-          ),
+    return TabPlaceItem(
+      attraction: attraction,
+      isAdded: isAdded,
+      destinationName: widget.destinationName,
+      destinationImg: widget.destinationImg,
+      onAdd: isAdded
+          ? null
+          : () async {
+              setState(() => addedAttractionIds.add(placeId));
 
-          const SizedBox(width: 12),
-
-          // Texto
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  attraction['name'] ?? "Sin nombre",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  attraction['vicinity'] ?? "Dirección desconocida",
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-
-          // Número
-          CircleAvatar(
-            radius: 12,
-            backgroundColor: Colors.blueAccent,
-            child: Text(
-              "$number",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _estimationsSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blueAccent),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              "Estimaciones",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: 15),
-
-            Row(
-              children: [
-                Icon(Icons.monetization_on_outlined, color: Colors.grey),
-                SizedBox(width: 8),
-                Text("S/. 120 entradas"),
-              ],
-            ),
-            SizedBox(height: 8),
-
-            Row(
-              children: [
-                Icon(Icons.bed_outlined, color: Colors.grey),
-                SizedBox(width: 8),
-                Text("S/. 50 Hospedaje"),
-              ],
-            ),
-            SizedBox(height: 8),
-
-            Row(
-              children: [
-                Icon(Icons.route_outlined, color: Colors.grey),
-                SizedBox(width: 8),
-                Text("Av. Rumo 1 km 11 milla js"),
-              ],
-            ),
-            SizedBox(height: 8),
-
-            Row(
-              children: [
-                Icon(Icons.access_time, color: Colors.grey),
-                SizedBox(width: 8),
-                Text("Abierto - Cierra 5:00 PM"),
-              ],
-            ),
-          ],
-        ),
-      ),
+              try {
+                await ItineraryService().addAttraction(
+                  destinationName: widget.destinationName,
+                  destinationImg: widget.destinationImg,
+                  attraction: attraction,
+                );
+              } catch (e) {
+                setState(() => addedAttractionIds.remove(placeId));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error al agregar: $e')));
+              }
+            },
     );
   }
 }

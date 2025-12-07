@@ -97,9 +97,10 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     if (result is UserModel) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const SettingsPage()),
+        (route) => false,
       );
     }
   }

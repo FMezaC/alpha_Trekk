@@ -53,4 +53,19 @@ class UserModel {
       "createdAt": createdAt,
     };
   }
+
+  //recuperar
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      id: map['id'] ?? "",
+      name: map['name'] ?? "",
+      lastName: map['lastName'] ?? "",
+      username: map['username'] ?? "",
+      email: map['email'] ?? "",
+      country: map['country'] ?? "",
+      language: map['language'] ?? "",
+      profileImage: map['profileImage'] ?? "",
+      createdAt: map['createdAt'] ?? "",
+    );
+  }
 }

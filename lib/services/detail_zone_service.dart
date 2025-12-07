@@ -105,8 +105,10 @@ class ZoneService {
     final services = await getServices(baseZone.lat, baseZone.lng);
 
     return baseZone.copyWith(
-      averageRating: ratingData['average'],
-      votes: ratingData['votes'],
+      averageRating: (ratingData['votes'] > 0)
+          ? ratingData['average']
+          : baseZone.averageRating,
+      votes: (ratingData['votes'] > 0) ? ratingData['votes'] : baseZone.votes,
       userRating: userRating,
       services: services,
     );

@@ -2,7 +2,6 @@ import 'package:alpha_treck/app_theme.dart';
 import 'package:alpha_treck/models/zone_model.dart';
 import 'package:alpha_treck/models/detail_zone_model.dart';
 import 'package:alpha_treck/presentation/home/rating_card.dart';
-import 'package:alpha_treck/repositories/detail_zone_repository.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,12 +13,35 @@ class ZoneDetailPage extends StatefulWidget {
   const ZoneDetailPage({super.key, required this.zone});
 
   @override
-  _ZoneDetailPageState createState() => _ZoneDetailPageState();
+  State<ZoneDetailPage> createState() => _ZoneDetailPageState();
 }
+
+// servicios a listar:
+const Map<String, String> serviceTranslations = {
+  'restaurant': 'Restaurante',
+  'cafe': 'Café',
+  'bus_station': 'Parada de bus',
+  'train_station': 'Estación de tren',
+  'subway_station': 'Estación de metro',
+  'parking': 'Zona de parqueo',
+  'bank': 'Banco',
+  'bar': 'Bar',
+  'hotel': 'Hotel',
+  'lodging': 'Alojamiento',
+  'spa': 'Spa',
+  'sauna': 'Sauna',
+  'public_toilet': 'Baño',
+  'washroom': 'Baño',
+  'toilet': 'Baño',
+  'gas_station': 'Estación de Servicio',
+  'shopping_mall': 'Centro Comercial',
+  'store': 'Tienda',
+};
 
 class _ZoneDetailPageState extends State<ZoneDetailPage> {
   late ZoneService _zoneService;
   late Future<DetailZoneModel> _zoneDetails;
+  final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void initState() {
@@ -39,6 +61,8 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
         description: widget.zone.description,
         lat: widget.zone.latitude,
         lng: widget.zone.longitude,
+        imageUrl: widget.zone.imageUrl,
+        averageRating: widget.zone.rating,
       ),
     );
     return zone;
@@ -93,9 +117,8 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 30),
 
-                // Zona de servicios dentro de un Card
+                // Zona de servicios
                 _buildServicesCard(zone.services),
 
                 const SizedBox(height: 30),
@@ -104,8 +127,8 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
                 Center(
                   child: RatingCard(
                     zoneId: zone.id,
-                    userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                    ratingRepo: RatingRepository(),
+                    userId: userId,
+                    //ratingRepo: RatingRepository(),
                     googleRating: zone.averageRating,
                   ),
                 ),
@@ -121,19 +144,16 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
 
   // Imagen de la zona
   Widget _buildImage(DetailZoneModel zone) {
-    const defaultImg =
-        "https://urbanistas.lat/wp-content/uploads/2020/10/andina_980x980.png";
-    final imageUrl = zone.imageUrl ?? defaultImg;
-    return Image.network(
-      imageUrl,
+    final imageUrl = zone.imageUrl ?? "";
+    return SizedBox(
       width: double.infinity,
       height: 220,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Image.network(
-        defaultImg,
-        width: double.infinity,
-        height: 220,
+      child: FadeInImage(
+        placeholder: AssetImage("assets/imagen01.png"),
+        image: NetworkImage(imageUrl),
         fit: BoxFit.cover,
+        imageErrorBuilder: (_, __, ___) =>
+            Image.asset("assets/imagen01.png", fit: BoxFit.cover),
       ),
     );
   }
@@ -207,8 +227,10 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Card(
-        color: const Color(0xFFF8F9FB),
+        color: white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 6,
+        shadowColor: grayLight,
         margin: const EdgeInsets.all(10),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -232,92 +254,69 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
 
   // Widget para mostrar los servicios de un tipo específico
   Widget _buildServiceTypeSection(List<Service> services, String type) {
+    // Solo consideramos los servicios que están en el mapa
+    if (!serviceTranslations.containsKey(type.toLowerCase())) {
+      return SizedBox();
+    }
     // Filtramos los servicios por tipo
     List<Service> filteredServices = services
         .where((service) => service.type.toLowerCase() == type.toLowerCase())
         .toList();
 
-    // Limitar a solo 1 servicio o más (según el caso)
-    var limitedServices = filteredServices
-        .take(1)
-        .toList(); // Toma solo el primer servicio
+    if (filteredServices.isEmpty) return SizedBox();
+    final Service mainService = filteredServices.first;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Título de la sección
-        Text(
-          type[0].toUpperCase() + type.substring(1), // Primer letra mayúscula
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        // Mostrar el primer servicio o los primeros (en caso de querer mostrar más)
-        for (var service in limitedServices) _buildServiceTile(service),
-        // Si hay más de un servicio, mostrar el botón "Ver más"
-        if (filteredServices.length > 1)
-          TextButton(
-            onPressed: () {
-              // Aquí puedes agregar la lógica para mostrar más servicios
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('Más Servicios de $type'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: filteredServices
-                        .map((service) => _buildServiceTile(service))
-                        .toList(),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cerrar'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            child: const Text('Ver más', style: TextStyle(color: Colors.blue)),
-          ),
-        const SizedBox(height: 16),
-      ],
+      children: [_buildServiceTile(mainService), const SizedBox(height: 1)],
     );
   }
 
   // Widget para mostrar cada servicio con su ícono y detalles
   Widget _buildServiceTile(Service service) {
-    String displayText;
     IconData iconData;
+    final translated =
+        serviceTranslations[service.type.toLowerCase()] ?? service.type;
 
-    // Asignar ícon y texto según el tipo de servicio
+    // Asignar icono según tipo
     switch (service.type.toLowerCase()) {
       case 'bus_station':
       case 'train_station':
       case 'subway_station':
         iconData = Icons.airplane_ticket;
-        displayText = 'Transporte: ${service.name}';
         break;
       case 'restaurant':
+      case 'cafe':
         iconData = Icons.restaurant;
-        displayText = 'Restaurante: ${service.name}';
         break;
       case 'public_toilet':
       case 'washroom':
       case 'toilet':
         iconData = Icons.wash;
-        displayText = 'Baño disponible';
         break;
       case 'parking':
-        iconData = Icons.spa;
-        displayText = 'Zona de parqueo';
+        iconData = Icons.local_parking;
         break;
       case 'bank':
         iconData = Icons.account_balance;
-        displayText = 'Banco disponible';
+        break;
+      case 'hotel':
+      case 'lodging':
+        iconData = Icons.hotel;
+        break;
+      case 'spa':
+      case 'sauna':
+        iconData = Icons.spa;
+        break;
+      case 'gas_station':
+        iconData = Icons.local_gas_station;
+        break;
+      case 'shopping_mall':
+      case 'store':
+        iconData = Icons.store;
         break;
       default:
         iconData = Icons.info;
-        displayText = '${service.type} disponible';
     }
 
     return Container(
@@ -328,13 +327,30 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(iconData, color: Colors.purple),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              displayText,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  translated, // nombre del servicio
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                if (service.info?.isNotEmpty ?? false)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      service.info.toString(),
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                  ),
+              ],
             ),
           ),
           const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.purple),
@@ -403,7 +419,7 @@ class _DescriptionCard extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Card(
-        color: const Color(0xFFF8F9FB),
+        color: grayLight,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: EdgeInsets.all(10),
         child: Padding(

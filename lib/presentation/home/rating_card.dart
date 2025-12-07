@@ -1,17 +1,16 @@
 import 'package:alpha_treck/repositories/detail_zone_repository.dart';
+import 'package:alpha_treck/utils/navigation_helpers.dart';
 import 'package:flutter/material.dart';
 
 class RatingCard extends StatefulWidget {
   final String zoneId;
-  final String userId;
-  final RatingRepository ratingRepo;
+  final String? userId;
   final double? googleRating;
 
   const RatingCard({
     super.key,
     required this.zoneId,
     required this.userId,
-    required this.ratingRepo,
     this.googleRating,
   });
 
@@ -20,18 +19,24 @@ class RatingCard extends StatefulWidget {
 }
 
 class _RatingCardState extends State<RatingCard> {
+  final RatingRepository ratingRepo = RatingRepository();
   int selectedStars = 0;
+  bool hasUser = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserRating();
+    hasUser = widget.userId != null && widget.userId!.isNotEmpty;
+
+    if (hasUser) {
+      _loadUserRating();
+    }
   }
 
   Future<void> _loadUserRating() async {
-    final rating = await widget.ratingRepo.getUserRating(
+    final rating = await ratingRepo.getUserRating(
       widget.zoneId,
-      widget.userId,
+      widget.userId!,
     );
 
     if (mounted && rating != null) {
@@ -70,8 +75,22 @@ class _RatingCardState extends State<RatingCard> {
   }
 
   Widget _buildHeader() {
+    if (!hasUser) {
+      return Column(
+        children: const [
+          Text(
+            'Calificación de zona',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            "Inicia sesión para votar ⭐",
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+        ],
+      );
+    }
     return StreamBuilder<Map<String, dynamic>>(
-      stream: widget.ratingRepo.getRatingStatsStream(widget.zoneId),
+      stream: ratingRepo.getRatingStatsStream(widget.zoneId),
       builder: (context, snapshot) {
         final avg = snapshot.data?['average'] ?? 0.0;
         final votes = snapshot.data?['votes'] ?? 0;
@@ -102,7 +121,7 @@ class _RatingCardState extends State<RatingCard> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (i) {
         return GestureDetector(
-          onTap: () => setState(() => selectedStars = i + 1),
+          onTap: hasUser ? () => setState(() => selectedStars = i + 1) : null,
           child: Icon(
             i < selectedStars ? Icons.star : Icons.star_border,
             color: i < selectedStars ? Colors.purple : Colors.grey.shade400,
@@ -117,17 +136,23 @@ class _RatingCardState extends State<RatingCard> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () async {
-          await widget.ratingRepo.setRating(
-            widget.zoneId,
-            widget.userId,
-            selectedStars,
-          );
+        onPressed: hasUser
+            ? () async {
+                await ratingRepo.setRating(
+                  widget.zoneId,
+                  widget.userId!,
+                  selectedStars,
+                );
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Rating enviado: $selectedStars estrellas')),
-          );
-        },
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Rating enviado: $selectedStars estrellas'),
+                  ),
+                );
+              }
+            : () {
+                navigateToLogin(context);
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFF8F9FB),
           elevation: 0,
@@ -136,7 +161,7 @@ class _RatingCardState extends State<RatingCard> {
           ),
         ),
         child: const Text(
-          'Enviar Calificación',
+          'Calificar zona',
           style: TextStyle(color: Colors.black87),
         ),
       ),

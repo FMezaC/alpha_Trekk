@@ -5,45 +5,31 @@ class LocationService {
   double? lat;
   double? lng;
 
-  // Método para obtener la ubicación actual y convertirla en una dirección
+  // Obtener ubicación actual y dirección
   Future<String?> getCurrentLocation() async {
-    // Verificar si los servicios de ubicación están habilitados
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Si el servicio de ubicación está deshabilitado
-      return "El servicio de ubicación está deshabilitado.";
-    }
+    if (!serviceEnabled) return "El servicio de ubicación está deshabilitado.";
 
-    // Verificar si tenemos permiso para acceder a la ubicación
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Si los permisos son denegados
+      if (permission == LocationPermission.denied)
         return "Permiso de ubicación denegado.";
-      }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      // Si los permisos son denegados permanentemente
+    if (permission == LocationPermission.deniedForever)
       return "Permiso de ubicación permanentemente denegado.";
-    }
 
-    // Obtener la ubicación actual del usuario
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
 
-    // Convertir las coordenadas a una dirección
-    List<Placemark> placemarks = await placemarkFromCoordinates(
-      position.latitude,
-      position.longitude,
-    );
+    // Guardar coordenadas para usar en tu análisis de ruta
+    lat = position.latitude;
+    lng = position.longitude;
 
-    // Obtener el primer "placemark"
+    List<Placemark> placemarks = await placemarkFromCoordinates(lat!, lng!);
     Placemark place = placemarks[0];
-
-    // Crear una dirección legible
     String address = '${place.street}, ${place.locality}, ${place.country}';
 
     return address;

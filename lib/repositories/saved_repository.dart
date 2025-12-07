@@ -40,4 +40,31 @@ class SavedRepository {
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList());
   }
+
+  Stream<List<Zone>> getSavedZones(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('saved')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => Zone(
+                  id: doc.id,
+                  name: doc['name'],
+                  description: doc['description'],
+                  imageUrl: doc['imageUrl'],
+                  rating: doc['rating'],
+                  distance: doc['distance'],
+                  isOpen: doc['isOpen'],
+                  openingHours: doc['openingHours'] ?? '',
+                  types: List<String>.from(doc['types']),
+                  latitude: doc['latitude'],
+                  longitude: doc['longitude'],
+                ),
+              )
+              .toList(),
+        );
+  }
 }

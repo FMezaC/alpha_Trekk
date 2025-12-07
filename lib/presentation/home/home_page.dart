@@ -1,16 +1,17 @@
 import 'dart:async';
-import 'package:alpha_treck/models/detail_zone_model.dart';
 import 'package:alpha_treck/models/zone_model.dart';
-import 'package:alpha_treck/presentation/home/ZoneCardPlaceholder.dart';
+import 'package:alpha_treck/models/zones_full_data.dart';
+import 'package:alpha_treck/presentation/home/zone_card_placeholder.dart';
 import 'package:alpha_treck/presentation/home/zone_detail_page.dart';
 import 'package:alpha_treck/repositories/favorites_repository.dart';
 import 'package:alpha_treck/repositories/places_repository.dart';
-import 'package:alpha_treck/repositories/detail_zone_repository.dart';
 import 'package:alpha_treck/repositories/saved_repository.dart';
+import 'package:alpha_treck/utils/connectivity_helper.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:alpha_treck/presentation/home/zone_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:rxdart/rxdart.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -40,7 +41,8 @@ class _BodyView extends StatefulWidget {
 class _BodyViewState extends State<_BodyView> {
   final PlacesRepository _repository = PlacesRepository();
   final ScrollController _scrollController = ScrollController();
-  StreamSubscription<List<Zone>>? _subscription;
+  late Stream<ZonesFullData> combinedStream;
+  final TextEditingController _searchController = TextEditingController();
 
   Set<String> selectedFilters = {};
   final Map<String, String> filterMap = {
@@ -59,10 +61,27 @@ class _BodyViewState extends State<_BodyView> {
   bool isLoadingMore = false;
   late String userId;
 
+  Stream<ZonesFullData> getCombinedStream(String userId) {
+    return Rx.combineLatest3(
+      _repository.getZonesStream(),
+      FavoritesRepository().getFavorites(userId),
+      SavedRepository().getSaved(userId),
+      (zones, favs, saved) {
+        for (var z in zones) {
+          z.favorite = favs.contains(z.id);
+          z.saved = saved.contains(z.id);
+        }
+        return ZonesFullData(zones);
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+
     userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    combinedStream = getCombinedStream(userId);
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
@@ -70,25 +89,12 @@ class _BodyViewState extends State<_BodyView> {
         _loadMore();
       }
     });
-
-    // Suscribirse al stream
-    _subscription = _repository.getZonesStream().listen((zones) {
-      if (!mounted) return;
-
-      setState(() {
-        allZones.addAll(zones);
-        if (visibleZones.length < itemsPerPage) {
-          final remining = itemsPerPage - visibleZones.length;
-          visibleZones.addAll(zones.take(remining));
-        }
-      });
-    });
   }
 
   // cancelamos suscripcion
   @override
   void dispose() {
-    _subscription?.cancel();
+    //_subscription?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -96,51 +102,29 @@ class _BodyViewState extends State<_BodyView> {
   // Construye STREAM de zonas
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Zone>>(
-      stream: _repository.getZonesStream(),
-      builder: (context, snapshotZones) {
-        if (!snapshotZones.hasData) {
-          return const Center(child: CircularProgressIndicator());
+    return StreamBuilder<bool>(
+      stream: ConnectivityHelper.connectionStream(),
+      builder: (context, snapshot) {
+        if (snapshot.data == false) {
+          return const Center(child: Text("Sin conexión a Internet"));
         }
 
-        allZones = snapshotZones.data!;
+        // UI normal cuando hay internet
+        return StreamBuilder<ZonesFullData>(
+          stream: combinedStream,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        // Stream de FAVORITOS
-        return _buildFavoritesLayer();
-      },
-    );
-  }
+            allZones = snapshot.data!.zones;
+            if (visibleZones.isEmpty) {
+              visibleZones = allZones.take(itemsPerPage).toList();
+            }
 
-  Widget _buildFavoritesLayer() {
-    return StreamBuilder<List<String>>(
-      stream: FavoritesRepository().getFavorites(userId),
-      builder: (context, snapshotFavs) {
-        final favoriteIds = snapshotFavs.data ?? [];
-
-        for (var zone in allZones) {
-          zone.favorite = favoriteIds.contains(zone.id);
-        }
-
-        return _buildSavedLayer();
-      },
-    );
-  }
-
-  Widget _buildSavedLayer() {
-    return StreamBuilder<List<String>>(
-      stream: SavedRepository().getSaved(userId),
-      builder: (context, snapshotSaved) {
-        final savedIds = snapshotSaved.data ?? [];
-
-        for (var zone in allZones) {
-          zone.saved = savedIds.contains(zone.id);
-        }
-
-        if (visibleZones.length < itemsPerPage && allZones.isNotEmpty) {
-          visibleZones = allZones.take(itemsPerPage).toList();
-        }
-        // Construye la UI final limpia
-        return _buildUI();
+            return _buildUI();
+          },
+        );
       },
     );
   }
@@ -165,11 +149,15 @@ class _BodyViewState extends State<_BodyView> {
 
   Widget _buildSearch() {
     return TextField(
+      controller: _searchController,
       decoration: InputDecoration(
         hintText: "Buscar zona...",
         prefixIcon: const Icon(Icons.search),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      onChanged: (query) {
+        _applyFilters();
+      },
     );
   }
 
@@ -270,15 +258,28 @@ class _BodyViewState extends State<_BodyView> {
   }
 
   void _applyFilters() {
-    if (selectedFilters.isEmpty) {
-      visibleZones = allZones.take(itemsPerPage).toList();
-      return;
+    List<Zone> filtered = allZones;
+
+    // 1. Filtrar por filtros seleccionados
+    if (selectedFilters.isNotEmpty) {
+      filtered = filtered.where((zone) {
+        return zone.types.any((t) => selectedFilters.contains(t));
+      }).toList();
     }
 
-    final filtered = allZones.where((zone) {
-      return zone.types.any((t) => selectedFilters.contains(t));
-    }).toList();
+    // 2. Filtrar por búsqueda
+    final query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
+      filtered = filtered.where((zone) {
+        return zone.name.toLowerCase().contains(query);
+      }).toList();
+    }
 
     visibleZones = filtered.take(itemsPerPage).toList();
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+
+    setState(() {});
   }
 }

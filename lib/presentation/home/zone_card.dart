@@ -1,5 +1,6 @@
 import 'package:alpha_treck/repositories/favorites_repository.dart';
 import 'package:alpha_treck/repositories/saved_repository.dart';
+import 'package:alpha_treck/utils/navigation_helpers.dart';
 import 'package:flutter/material.dart';
 import '../../models/zone_model.dart';
 import '../../app_theme.dart';
@@ -157,6 +158,10 @@ class _ZoneCardState extends State<ZoneCard> {
                       size: 20,
                     ),
                     onPressed: () async {
+                      if (widget.userId.isEmpty) {
+                        navigateToLogin(context);
+                        return;
+                      }
                       final newState = !widget.zone.favorite;
                       setState(() {
                         widget.zone.favorite = newState; // Cambia estado local
@@ -178,6 +183,10 @@ class _ZoneCardState extends State<ZoneCard> {
                       size: 20,
                     ),
                     onPressed: () async {
+                      if (widget.userId.isEmpty) {
+                        navigateToLogin(context);
+                        return;
+                      }
                       final newSaved = !widget.zone.saved;
                       setState(() {
                         widget.zone.saved = newSaved;
