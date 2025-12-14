@@ -12,6 +12,8 @@ class ItenerarieDetail extends StatefulWidget {
   final List<Map<String, dynamic>> nextPageTokens;
   final String destinationName;
   final String destinationImg;
+  final int dayAviable;
+  final int typeTransport;
 
   const ItenerarieDetail({
     super.key,
@@ -19,6 +21,8 @@ class ItenerarieDetail extends StatefulWidget {
     required this.nextPageTokens,
     required this.destinationName,
     required this.destinationImg,
+    required this.dayAviable,
+    required this.typeTransport,
   });
 
   @override
@@ -148,6 +152,8 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
                           ),
                         );
                       },
+                      daysAvailable: widget.dayAviable,
+                      selectedTransport: widget.typeTransport,
                     ),
                   ),
                 ],

@@ -33,6 +33,7 @@ class SavedRepository {
 
   /// Obtener zonas guardadas del usuario
   Stream<List<String>> getSaved(String userId) {
+    if (userId.isEmpty) return Stream.value([]);
     return _firestore
         .collection('users')
         .doc(userId)

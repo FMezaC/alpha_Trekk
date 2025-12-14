@@ -170,6 +170,7 @@ class _ProfileHeader extends StatelessWidget {
 // ------------------------------------------------------------
 
 class TripsTab extends StatelessWidget {
+  const TripsTab({super.key});
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -206,6 +207,7 @@ class TripsTab extends StatelessWidget {
 }
 
 class ReviewsTab extends StatelessWidget {
+  const ReviewsTab({super.key});
   @override
   Widget build(BuildContext context) {
     return Center(

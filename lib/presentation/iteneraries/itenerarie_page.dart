@@ -21,6 +21,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
   // Transporte seleccionado
   int selectedTransport = 0;
   bool isLoading = false;
+  final TextEditingController daysController = TextEditingController();
 
   final List<IconData> _icons = [
     Icons.rv_hookup,
@@ -178,6 +179,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
         SizedBox(
           width: 80,
           child: TextField(
+            controller: daysController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               hintText: " 5 ",
@@ -223,6 +225,7 @@ class _ItenerariePageState extends State<ItenerariePage> {
   //obtener coordenas de origen y destino
   Future<void> _analyzeRoute() async {
     //print("boton precionado: $selectedStart");
+    int? daysAvailable = int.tryParse(daysController.text) ?? 0;
     if (selectedStart == null || selectedDestination == null) return;
     setState(() {
       isLoading = true;
@@ -306,6 +309,8 @@ class _ItenerariePageState extends State<ItenerariePage> {
               nextPageTokens: pageTokens,
               destinationName: selectedDestination!.description,
               destinationImg: selectedDestination!.photoUrl ?? "",
+              dayAviable: daysAvailable,
+              typeTransport: selectedTransport,
             ),
           ),
         );

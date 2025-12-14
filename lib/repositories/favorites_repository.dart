@@ -33,6 +33,7 @@ class FavoritesRepository {
 
   /// Obtener IDs de favoritos del usuario
   Stream<List<String>> getFavorites(String userId) {
+    if (userId.isEmpty) return Stream.value([]);
     return _firestore
         .collection('users')
         .doc(userId)

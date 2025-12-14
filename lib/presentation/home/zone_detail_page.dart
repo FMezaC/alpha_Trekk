@@ -1,7 +1,12 @@
 import 'package:alpha_treck/app_theme.dart';
+import 'package:alpha_treck/models/reservation_model.dart';
 import 'package:alpha_treck/models/zone_model.dart';
 import 'package:alpha_treck/models/detail_zone_model.dart';
 import 'package:alpha_treck/presentation/home/rating_card.dart';
+import 'package:alpha_treck/presentation/home/reservation.dart';
+import 'package:alpha_treck/repositories/reservation_repository.dart';
+import 'package:alpha_treck/services/reservation_service.dart';
+import 'package:alpha_treck/utils/format_date.dart';
 import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -42,19 +47,34 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
   late ZoneService _zoneService;
   late Future<DetailZoneModel> _zoneDetails;
   final String? userId = FirebaseAuth.instance.currentUser?.uid;
+  late ReservationService _reservationService;
+  bool hasReservation = false;
 
   @override
   void initState() {
     super.initState();
     _zoneService = ZoneService();
     _zoneDetails = _loadZoneDetails();
+    _reservationService = ReservationService(ReservationRepository());
+    _checkUserReservation();
+  }
+
+  Future<void> _checkUserReservation() async {
+    if (userId == null) return;
+    bool exists = await _reservationService.hasUserReservation(
+      userId!,
+      widget.zone.id,
+    );
+    setState(() {
+      hasReservation = exists;
+    });
   }
 
   // Cargar los detalles de la zona
   Future<DetailZoneModel> _loadZoneDetails() async {
     final zone = await _zoneService.getZoneDetails(
       widget.zone.id,
-      FirebaseAuth.instance.currentUser?.uid, // Para el rating del usuario
+      FirebaseAuth.instance.currentUser?.uid,
       DetailZoneModel(
         id: widget.zone.id,
         name: widget.zone.name,
@@ -65,6 +85,7 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
         averageRating: widget.zone.rating,
       ),
     );
+
     return zone;
   }
 
@@ -92,6 +113,11 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
 
             final zone = snapshot.data!;
 
+            final hasReservationService = zone.services.any((service) {
+              final type = service.type.toLowerCase();
+              return type.contains('lodging') || type.contains('restaurant');
+            });
+
             return ListView(
               children: [
                 // Imagen con botones encima
@@ -108,9 +134,14 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
                     children: [
                       _NombreZona(zone: zone),
                       const SizedBox(height: 8),
-                      _RatingActions(
+
+                      _ReservationActions(
                         rating: zone.averageRating,
                         votes: zone.votes,
+                        zone: zone,
+                        hasReservation: hasReservation,
+                        userId: userId,
+                        showReservationButton: hasReservationService,
                       ),
                       const SizedBox(height: 16),
                       _DescriptionCard(description: zone.description),
@@ -254,11 +285,9 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
 
   // Widget para mostrar los servicios de un tipo específico
   Widget _buildServiceTypeSection(List<Service> services, String type) {
-    // Solo consideramos los servicios que están en el mapa
     if (!serviceTranslations.containsKey(type.toLowerCase())) {
       return SizedBox();
     }
-    // Filtramos los servicios por tipo
     List<Service> filteredServices = services
         .where((service) => service.type.toLowerCase() == type.toLowerCase())
         .toList();
@@ -376,14 +405,27 @@ class _NombreZona extends StatelessWidget {
 }
 
 // Widget para rating y botones de acción
-class _RatingActions extends StatelessWidget {
+class _ReservationActions extends StatelessWidget {
   final double rating;
   final int votes;
+  final DetailZoneModel zone;
+  final bool hasReservation;
+  final String? userId;
+  final bool showReservationButton;
 
-  const _RatingActions({required this.rating, required this.votes});
+  const _ReservationActions({
+    required this.rating,
+    required this.votes,
+    required this.zone,
+    required this.hasReservation,
+    required this.userId,
+    required this.showReservationButton,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final repo = ReservationRepository();
+
     return Row(
       children: [
         const Icon(Icons.star, color: Colors.amber, size: 20),
@@ -397,12 +439,69 @@ class _RatingActions extends StatelessWidget {
           child: Text('$votes Reseñas'),
         ),
         const SizedBox(width: 10),
-        TextButton(
-          onPressed: () {
-            // Acción para valorar
-          },
-          child: const Text('Valorar'),
-        ),
+        if (userId != null && showReservationButton)
+          TextButton(
+            onPressed: () async {
+              final zoneId = zone.id;
+              final zoneName = zone.name;
+              final zoneImg = zone.imageUrl;
+
+              if (hasReservation) {
+                // Obtener la reserva
+                ReservationModel? reservation = await repo
+                    .getUserReservationForService(
+                      userId: userId,
+                      serviceId: zoneId,
+                    );
+
+                if (reservation != null) {
+                  // Mostrar modal con datos
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text('Detalles de tu reserva'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Nombre: ${reservation.customerName}'),
+                            Text(
+                              'Fecha: ${formatDate(DateTime.parse(reservation.reservationDate))}',
+                            ),
+                            Text(
+                              'Número de personas: ${reservation.numberOfPeople}',
+                            ),
+                            Text('Servicio: ${reservation.serviceType}'),
+                            Text('Estado: ${reservation.status}'),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Cerrar'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+              } else {
+                // Redirigir a reservar
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ReservationPage(
+                      zoneId: zoneId,
+                      zoneName: zoneName,
+                      zoneImg: zoneImg ?? '',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: Text(hasReservation ? 'Ver reserva' : 'Realizar reserva'),
+          ),
       ],
     );
   }

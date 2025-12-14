@@ -247,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage> {
         color: Colors.grey.shade100,
       ),
       child: DropdownButtonFormField<String>(
-        value: tempLanguage,
+        initialValue: tempLanguage,
         decoration: const InputDecoration(border: InputBorder.none),
         items: const [
           DropdownMenuItem(value: "Spanish", child: Text("Español")),
@@ -285,7 +285,7 @@ class _SettingsPageState extends State<SettingsPage> {
       },
       child: CircleAvatar(
         radius: 18,
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         child: Icon(icon, color: color, size: 20),
       ),
     );

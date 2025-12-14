@@ -11,7 +11,7 @@ class FiltersWidget extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _FiltersWidgetState createState() => _FiltersWidgetState();
+  State<FiltersWidget> createState() => _FiltersWidgetState();
 }
 
 class _FiltersWidgetState extends State<FiltersWidget> {

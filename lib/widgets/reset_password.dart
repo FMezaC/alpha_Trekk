@@ -117,7 +117,7 @@ class _ResetPasswordDialogState extends State<ResetPasswordDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Correo enviado correctamente")),
       );
-      Navigator.pop(context); // Cierra el modal después de enviar
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
