@@ -42,12 +42,14 @@ class OfflineMapScreen extends StatelessWidget {
                 'AlphaTreck/0.0.1 (https://alpha-treck.com) contact@alpha-treck.com',
             tileProvider: FMTCTileProvider(
               stores: const {'OSM': BrowseStoreStrategy.readUpdateCreate},
-            ), // <-- aquí va el caching
+            ),
           ),
 
           // Marcadores
           MarkerLayer(
             markers: attractions.map((attr) {
+              final isStart = attr['name'] == 'Inicio';
+              final isEnd = attr['name'] == 'Destino';
               return Marker(
                 point: LatLng(
                   (attr['lat'] as num).toDouble(),
@@ -55,9 +57,17 @@ class OfflineMapScreen extends StatelessWidget {
                 ),
                 width: 40,
                 height: 40,
-                child: const Icon(
-                  Icons.location_on,
-                  color: Colors.red,
+                child: Icon(
+                  isStart
+                      ? Icons.play_arrow
+                      : isEnd
+                      ? Icons.flag
+                      : Icons.location_on,
+                  color: isStart
+                      ? Colors.green
+                      : isEnd
+                      ? Colors.red
+                      : Colors.blue,
                   size: 40,
                 ),
               );

@@ -3,16 +3,14 @@ import 'package:http/http.dart' as http;
 import '../models/zone_model.dart';
 
 class GooglePlacesService {
-  final String apiKey = "AIzaSyCBI7Q5rJjJ-_V79zjlmjTCzDFOiAeVybc";
+  final String apiKey = "AIzaSyCiFydmSUdHFk2rf_uNDWwNF7bZ4kZrZCY";
 
   // Tipos puramente turísticos (filtrados correctamente)
   static const List<String> tipos = [
     'art_gallery',
     'historic_site',
     'nature_reserve',
-    'point_of_interest',
     'tourist_attraction',
-    'establishment',
     'aquarium',
     'campground',
     'park',
@@ -20,6 +18,8 @@ class GooglePlacesService {
     'natural_feature',
     'church',
     'zoo',
+    'point_of_interest',
+    'establishment',
   ];
 
   Stream<List<Zone>> fetchNearbyZones(double lat, double lng) async* {

@@ -15,6 +15,11 @@ class ItenerarieDetail extends StatefulWidget {
   final int dayAviable;
   final int typeTransport;
 
+  final double starLat;
+  final double startLng;
+  final double destinationLat;
+  final double destinationLng;
+
   const ItenerarieDetail({
     super.key,
     required this.attractions,
@@ -23,6 +28,10 @@ class ItenerarieDetail extends StatefulWidget {
     required this.destinationImg,
     required this.dayAviable,
     required this.typeTransport,
+    required this.starLat,
+    required this.startLng,
+    required this.destinationLat,
+    required this.destinationLng,
   });
 
   @override
@@ -154,6 +163,11 @@ class _ItenerarieDetailState extends State<ItenerarieDetail> {
                       },
                       daysAvailable: widget.dayAviable,
                       selectedTransport: widget.typeTransport,
+
+                      startLat: widget.starLat,
+                      startLng: widget.startLng,
+                      destinationLat: widget.destinationLat,
+                      destinationLng: widget.destinationLng,
                     ),
                   ),
                 ],

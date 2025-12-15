@@ -1,4 +1,6 @@
 import 'package:alpha_treck/app_theme.dart';
+import 'package:alpha_treck/services/directions_service.dart';
+import 'package:alpha_treck/services/distance_matrix_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
@@ -9,13 +11,35 @@ class TabEstimations extends StatelessWidget {
   final int selectedTransport;
   final int daysAvailable;
 
+  final double startLat;
+  final double startLng;
+  final double destinationLat;
+  final double destinationLng;
+
   TabEstimations({
     super.key,
     required this.addedAttractions,
     required this.onDownloadMap,
     required this.selectedTransport,
     required this.daysAvailable,
+    required this.startLat,
+    required this.startLng,
+    required this.destinationLat,
+    required this.destinationLng,
   });
+
+  String _getTransportMode(int selectedTransport) {
+    switch (selectedTransport) {
+      case 0:
+        return 'driving';
+      case 1:
+        return 'walking';
+      case 2:
+        return 'bicycling';
+      default:
+        return 'driving';
+    }
+  }
 
   // Lista de servicios con costos para las estimaciones
   List<Map<String, dynamic>> get estimations {
@@ -98,6 +122,65 @@ class TabEstimations extends StatelessWidget {
           // Botón de Descargar mapa
           ElevatedButton(
             onPressed: () async {
+              if (addedAttractions.isEmpty) return;
+
+              final directions = DirectionsService();
+              final mode = _getTransportMode(selectedTransport);
+
+              // Ordenar atracciones por distancia
+              final sortedAttractions = await DistanceMatrixService()
+                  .sortAttractionsByDistance(
+                    originLat: startLat,
+                    originLng: startLng,
+                    attractions: addedAttractions,
+                    mode: mode,
+                  );
+
+              // Lista completa de puntos: inicio -> atracciones -> destino
+              List<Map<String, double>> routePoints = [
+                {'lat': startLat, 'lng': startLng},
+                ...sortedAttractions.map(
+                  (attr) => {'lat': attr['latitude'], 'lng': attr['longitude']},
+                ),
+                {'lat': destinationLat, 'lng': destinationLng},
+              ];
+
+              // Obtener polylines para cada tramo
+              List<String> polylineSegments = [];
+              for (int i = 0; i < routePoints.length - 1; i++) {
+                final segmentPolyline = await directions.getOverviewPolyline(
+                  startLat: routePoints[i]['lat']!,
+                  startLng: routePoints[i]['lng']!,
+                  endLat: routePoints[i + 1]['lat']!,
+                  endLng: routePoints[i + 1]['lng']!,
+                  mode: mode,
+                );
+                polylineSegments.add(segmentPolyline);
+              }
+
+              // Combinar todos los segmentos en una sola polyline
+              String fullPolyline = polylineSegments.join('|');
+
+              // Crear la ruta completa incluyendo inicio y destino
+              List<Map<String, dynamic>> fullRoute = [
+                {"name": "Inicio", "lat": startLat, "lng": startLng},
+                ...sortedAttractions.map(
+                  (attr) => {
+                    "name": attr['name'],
+                    "lat": attr['latitude'],
+                    "lng": attr['longitude'],
+                    "distance": attr['distance'],
+                    "duration": attr['duration'],
+                  },
+                ),
+                {
+                  "name": "Destino",
+                  "lat": destinationLat,
+                  "lng": destinationLng,
+                },
+              ];
+
+              // Guardar en Hive
               final box = Hive.box('mapsBox');
               final id = const Uuid().v4();
 
@@ -105,20 +188,16 @@ class TabEstimations extends StatelessWidget {
                 "id": id,
                 "name": "Mapa ${DateTime.now().toLocal()}",
                 "createdAt": DateTime.now().millisecondsSinceEpoch,
-                "attractions": addedAttractions.map((attr) {
-                  final lat = (attr['latitude'] as num).toDouble();
-                  final lng = (attr['longitude'] as num).toDouble();
-
-                  return {
-                    "name": attr["name"] ?? "Sin nombre",
-                    "lat": lat,
-                    "lng": lng,
-                  };
-                }).toList(),
+                "transport": mode,
+                "route": fullRoute,
+                "encodedPolyline": fullPolyline,
+                //"attractions": addedAttractions,
               });
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Mapa guardado correctamente')),
+                const SnackBar(
+                  content: Text('Mapa guardado con ruta optimizada'),
+                ),
               );
             },
             child: const Text("Descargar mapa"),

@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 class ZoneService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String googleApiKey = "AIzaSyCBI7Q5rJjJ-_V79zjlmjTCzDFOiAeVybc";
+  final String googleApiKey = "AIzaSyCiFydmSUdHFk2rf_uNDWwNF7bZ4kZrZCY";
 
   ZoneService();
 

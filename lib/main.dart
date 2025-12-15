@@ -10,6 +10,8 @@ import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseAppCheck.instance.activate(
     androidProvider: AndroidProvider.debug,
@@ -22,8 +24,6 @@ void main() async {
   await Hive.openBox('mapsBox');
   // final box = Hive.box('mapsBox');
   // await box.clear();
-
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

@@ -115,7 +115,7 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
 
             final hasReservationService = zone.services.any((service) {
               final type = service.type.toLowerCase();
-              return type.contains('lodging') || type.contains('restaurant');
+              return type == 'lodging' || type == 'restaurant';
             });
 
             return ListView(

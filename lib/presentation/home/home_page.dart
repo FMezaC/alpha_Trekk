@@ -11,7 +11,6 @@ import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:alpha_treck/presentation/home/zone_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -61,32 +60,38 @@ class _BodyViewState extends State<_BodyView> {
   bool isLoadingMore = false;
   late String userId;
 
-  Stream<ZonesFullData> getCombinedStream(String userId) {
-    return Rx.combineLatest3(
-      _repository.getZonesStream(),
-      FavoritesRepository().getFavorites(userId),
-      SavedRepository().getSaved(userId),
-      (zones, favs, saved) {
-        for (var z in zones) {
-          z.favorite = favs.contains(z.id);
-          z.saved = saved.contains(z.id);
-        }
-        return ZonesFullData(zones);
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
 
     userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    combinedStream = getCombinedStream(userId);
+    //combinedStream = getCombinedStream(userId);
+
+    _repository.getZonesStream().listen((zones) {
+      setState(() {
+        allZones = zones;
+        visibleZones = allZones.take(itemsPerPage).toList();
+      });
+    });
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200) {
         _loadMore();
+      }
+    });
+
+    _loadFavoritesAndSaved();
+  }
+
+  void _loadFavoritesAndSaved() async {
+    final favs = await FavoritesRepository().getFavorites(userId).first;
+    final saved = await SavedRepository().getSaved(userId).first;
+
+    setState(() {
+      for (var z in allZones) {
+        z.favorite = favs.contains(z.id);
+        z.saved = saved.contains(z.id);
       }
     });
   }
@@ -109,22 +114,14 @@ class _BodyViewState extends State<_BodyView> {
           return const Center(child: Text("Sin conexión a Internet"));
         }
 
-        // UI normal cuando hay internet
-        return StreamBuilder<ZonesFullData>(
-          stream: combinedStream,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        if (visibleZones.isEmpty) {
+          return ListView.builder(
+            itemCount: 4,
+            itemBuilder: (_, __) => const ZoneCardPlaceholder(),
+          );
+        }
 
-            allZones = snapshot.data!.zones;
-            if (visibleZones.isEmpty) {
-              visibleZones = allZones.take(itemsPerPage).toList();
-            }
-
-            return _buildUI();
-          },
-        );
+        return _buildUI();
       },
     );
   }

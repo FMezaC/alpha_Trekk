@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AttractionsPlacesService {
-  final String apiKey = 'AIzaSyCBI7Q5rJjJ-_V79zjlmjTCzDFOiAeVybc';
+  final String apiKey =
+      'AIzaSyCiFydmSUdHFk2rf_uNDWwNF7bZ4kZrZCY'; //'AIzaSyCBI7Q5rJjJ-_V79zjlmjTCzDFOiAeVybc';
 
   // Tipos de lugares turísticos que queremos buscar
   static const List<String> tipos = [

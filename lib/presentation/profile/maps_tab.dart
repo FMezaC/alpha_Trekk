@@ -67,7 +67,7 @@ class MapsTab extends StatelessWidget {
             return ListTile(
               leading: Icon(Icons.map, color: Colors.blue),
               title: Text(map['name']),
-              subtitle: Text("Atracciones: ${map['attractions'].length}"),
+              subtitle: Text("Atracciones: ${map['route'].length}"),
               trailing: ElevatedButton(
                 child: const Text("Abrir"),
                 onPressed: () {
@@ -75,7 +75,7 @@ class MapsTab extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          OfflineMapScreen(attractions: map['attractions']),
+                          OfflineMapScreen(attractions: map['route']),
                     ),
                   );
                 },

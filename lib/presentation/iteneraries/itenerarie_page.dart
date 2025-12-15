@@ -311,6 +311,11 @@ class _ItenerariePageState extends State<ItenerariePage> {
               destinationImg: selectedDestination!.photoUrl ?? "",
               dayAviable: daysAvailable,
               typeTransport: selectedTransport,
+
+              starLat: latStart,
+              startLng: lngStart,
+              destinationLat: latEnd,
+              destinationLng: lngEnd,
             ),
           ),
         );
