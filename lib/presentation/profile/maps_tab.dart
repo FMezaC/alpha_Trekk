@@ -74,8 +74,7 @@ class MapsTab extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          OfflineMapScreen(attractions: map['route']),
+                      builder: (_) => OfflineMapScreen(attractions: [map]),
                     ),
                   );
                 },

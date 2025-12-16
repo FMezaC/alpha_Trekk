@@ -19,8 +19,8 @@ class OfflineMapScreen extends StatelessWidget {
     }
 
     final firstPoint = LatLng(
-      (attractions.first['lat'] as num).toDouble(),
-      (attractions.first['lng'] as num).toDouble(),
+      (attractions.first['route'][0]['lat'] as num).toDouble(),
+      (attractions.first['route'][0]['lng'] as num).toDouble(),
     );
 
     return Scaffold(
@@ -47,37 +47,39 @@ class OfflineMapScreen extends StatelessWidget {
 
           // Marcadores
           MarkerLayer(
-            markers: attractions.map((attr) {
-              final isStart = attr['name'] == 'Inicio';
-              final isEnd = attr['name'] == 'Destino';
-              return Marker(
-                point: LatLng(
-                  (attr['lat'] as num).toDouble(),
-                  (attr['lng'] as num).toDouble(),
-                ),
-                width: 40,
-                height: 40,
-                child: Icon(
-                  isStart
-                      ? Icons.play_arrow
-                      : isEnd
-                      ? Icons.flag
-                      : Icons.location_on,
-                  color: isStart
-                      ? Colors.green
-                      : isEnd
-                      ? Colors.red
-                      : Colors.blue,
-                  size: 40,
-                ),
-              );
-            }).toList(),
+            markers:
+                attractions.first['route'].map<Marker>((attr) {
+                  final isStart = attr['name'] == 'Inicio';
+                  final isEnd = attr['name'] == 'Destino';
+                  return Marker(
+                    point: LatLng(
+                      (attr['lat'] as num).toDouble(),
+                      (attr['lng'] as num).toDouble(),
+                    ),
+                    width: 40,
+                    height: 40,
+                    child: Icon(
+                      isStart
+                          ? Icons.play_arrow
+                          : isEnd
+                          ? Icons.flag
+                          : Icons.location_on,
+                      color: isStart
+                          ? Colors.green
+                          : isEnd
+                          ? Colors.red
+                          : Colors.blue,
+                      size: 40,
+                    ),
+                  );
+                }).toList() ??
+                [],
           ),
 
           PolylineLayer(
             polylines: [
               Polyline(
-                points: attractions
+                points: (attractions.first['route'] as List<dynamic>)
                     .map(
                       (attr) => LatLng(
                         (attr['lat'] as num).toDouble(),
