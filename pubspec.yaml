@@ -47,6 +47,10 @@ dependencies:
   #rdxrxdart
   #rxdart: ^0.28.0
 
+  #polylline
+  #google_maps_polyline: ^1.0.3
+  flutter_polyline_points: ^3.1.0
+
   #cache imagen
   cached_network_image: ^3.2.3
 

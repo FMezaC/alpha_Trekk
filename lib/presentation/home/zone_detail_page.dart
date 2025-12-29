@@ -11,6 +11,7 @@ import 'package:alpha_treck/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:alpha_treck/services/detail_zone_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ZoneDetailPage extends StatefulWidget {
   final Zone zone;
@@ -175,17 +176,21 @@ class _ZoneDetailPageState extends State<ZoneDetailPage> {
 
   // Imagen de la zona
   Widget _buildImage(DetailZoneModel zone) {
-    final imageUrl = zone.imageUrl ?? "";
+    final imageUrl = zone.imageUrl;
+
     return SizedBox(
       width: double.infinity,
       height: 220,
-      child: FadeInImage(
-        placeholder: AssetImage("assets/imagen01.png"),
-        image: NetworkImage(imageUrl),
-        fit: BoxFit.cover,
-        imageErrorBuilder: (_, __, ___) =>
-            Image.asset("assets/imagen01.png", fit: BoxFit.cover),
-      ),
+      child: imageUrl != null && imageUrl.isNotEmpty
+          ? CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              placeholder: (_, _) =>
+                  Image.asset("assets/imagen01.png", fit: BoxFit.cover),
+              errorWidget: (_, _, _) =>
+                  Image.asset("assets/imagen01.png", fit: BoxFit.cover),
+            )
+          : Image.asset("assets/imagen01.png", fit: BoxFit.cover),
     );
   }
 

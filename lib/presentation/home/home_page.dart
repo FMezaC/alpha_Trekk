@@ -68,10 +68,12 @@ class _BodyViewState extends State<_BodyView> {
     //combinedStream = getCombinedStream(userId);
 
     _repository.getZonesStream().listen((zones) {
+      if (!mounted) return;
       setState(() {
         allZones = zones;
         visibleZones = allZones.take(itemsPerPage).toList();
       });
+      _loadFavoritesAndSaved();
     });
 
     _scrollController.addListener(() {
@@ -80,8 +82,6 @@ class _BodyViewState extends State<_BodyView> {
         _loadMore();
       }
     });
-
-    _loadFavoritesAndSaved();
   }
 
   void _loadFavoritesAndSaved() async {
@@ -110,8 +110,12 @@ class _BodyViewState extends State<_BodyView> {
     return StreamBuilder<bool>(
       stream: ConnectivityHelper.connectionStream(),
       builder: (context, snapshot) {
-        if (snapshot.data == false) {
+        if (snapshot.hasData && snapshot.data == false) {
           return const Center(child: Text("Sin conexión a Internet"));
+        }
+
+        if (!snapshot.hasData) {
+          return const SizedBox();
         }
 
         if (visibleZones.isEmpty) {

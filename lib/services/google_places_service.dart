@@ -22,10 +22,15 @@ class GooglePlacesService {
     'establishment',
   ];
 
-  Stream<List<Zone>> fetchNearbyZones(double lat, double lng) async* {
+  Stream<List<Zone>> fetchNearbyZones(
+    double lat,
+    double lng, {
+    int chunkSize = 10,
+  }) async* {
     Set<String> ids = {};
     List<Zone> allZones = [];
 
+    // Iteramos cada tipo secuencialmente
     for (final tipo in tipos) {
       final url = Uri.parse(
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
@@ -65,10 +70,17 @@ class GooglePlacesService {
             longitude: place["geometry"]["location"]["lng"],
           ),
         );
+
+        // Emitir chunk cada chunkSize
+        if (allZones.length % chunkSize == 0) {
+          yield List.from(allZones);
+          await Future.delayed(const Duration(milliseconds: 50)); // UI-friendly
+        }
       }
     }
 
-    yield allZones;
+    // Emitir todo lo de mas
+    if (allZones.isNotEmpty) yield allZones;
   }
 
   String _photoUrl(String ref) {

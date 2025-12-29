@@ -1,6 +1,7 @@
 import 'package:alpha_treck/repositories/favorites_repository.dart';
 import 'package:alpha_treck/repositories/saved_repository.dart';
 import 'package:alpha_treck/utils/navigation_helpers.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/zone_model.dart';
 import '../../app_theme.dart';
@@ -233,14 +234,19 @@ class _ZoneCardState extends State<ZoneCard> {
         borderRadius: BorderRadius.circular(8),
         color: Colors.grey[200],
       ),
-      child: widget.zone.imageUrl != null
+      child: widget.zone.imageUrl != null && widget.zone.imageUrl!.isNotEmpty
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                widget.zone.imageUrl!,
+              child: CachedNetworkImage(
+                imageUrl: widget.zone.imageUrl!,
+                width: 60,
+                height: 60,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
+                placeholder: (context, url) =>
+                    Container(width: 60, height: 60, color: Colors.grey[300]),
+                errorWidget: (context, url, error) =>
                     const Icon(Icons.broken_image, size: 20),
+                fadeInDuration: const Duration(milliseconds: 200),
               ),
             )
           : const Icon(Icons.image, size: 20),

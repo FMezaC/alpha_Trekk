@@ -7,32 +7,32 @@ class PlacesRepository {
   List<Zone>? _cache;
 
   /// STREAM: carga zona por zona
-  Stream<List<Zone>> getZonesStream() async* {
+  Stream<List<Zone>> getZonesStream({int chunkSize = 10}) async* {
     if (_cache != null) {
-      yield _cache!;
+      for (int i = 0; i < _cache!.length; i += chunkSize) {
+        yield _cache!.sublist(
+          0,
+          i + chunkSize > _cache!.length ? _cache!.length : i + chunkSize,
+        );
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
       return;
     }
 
     // obtener ubicación
     final pos = await _getLocation();
-
-    // inicializar lista vacía
-    _cache = [];
-    yield _cache!;
-
-    // await for (final zone in _service.fetchNearbyZones(
-    //   pos.latitude,
-    //   pos.longitude,
-    // )) {
-    //   _cache!.add(zone);
-    //   // enviar copia actualizada de la lista para la UI
-    //   yield List.from(_cache!);
-    // }
     final zones = await _service
         .fetchNearbyZones(pos.latitude, pos.longitude)
         .first;
     _cache = zones;
-    yield _cache!;
+
+    for (int i = 0; i < _cache!.length; i += chunkSize) {
+      yield _cache!.sublist(
+        0,
+        i + chunkSize > _cache!.length ? _cache!.length : i + chunkSize,
+      );
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
   }
 
   /// PAGINACIÓN

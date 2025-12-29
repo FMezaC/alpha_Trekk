@@ -12,75 +12,72 @@ class PermissionCheckWidget extends StatefulWidget {
 }
 
 class _PermissionCheckWidgetState extends State<PermissionCheckWidget> {
-  bool _isLocationGranted = false;
+  bool _permissionGranted = false;
+  bool _gpsEnabled = false;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _checkLocationPermission();
+    _checkAll();
   }
 
-  Future<void> _checkLocationPermission() async {
-    // 1️⃣ Permiso en uso (OBLIGATORIO)
-    PermissionStatus locationStatus = await Permission.location.request();
+  Future<void> _checkAll() async {
+    setState(() => _isLoading = true);
 
-    if (!locationStatus.isGranted) {
-      if (locationStatus.isPermanentlyDenied) {
+    // 1️⃣ Permiso
+    final status = await Permission.location.request();
+    if (!status.isGranted) {
+      if (status.isPermanentlyDenied) {
         _showSettingsDialog();
       }
-      setState(() => _isLoading = false);
+      setState(() {
+        _permissionGranted = false;
+        _isLoading = false;
+      });
       return;
     }
 
-    // 2️⃣ Permiso en segundo plano (OPCIONAL)
-    await Permission.locationAlways.request();
+    _permissionGranted = true;
 
-    // 3️⃣ Verificar si el GPS está habilitado
-    _checkGPSStatus();
+    // 2️⃣ GPS
+    _gpsEnabled = await Geolocator.isLocationServiceEnabled();
 
-    setState(() {
-      _isLocationGranted = true; // SOLO depende del permiso principal
-      _isLoading = false;
-    });
-  }
+    setState(() => _isLoading = false);
 
-  // Verificar el estado del GPS
-  Future<void> _checkGPSStatus() async {
-    bool isLocationServiceEnabled = await Geolocator.isLocationServiceEnabled();
-
-    if (!isLocationServiceEnabled) {
+    if (!_gpsEnabled) {
       _showGPSDialog();
     }
   }
 
-  // Mostrar un diálogo para redirigir al usuario a la configuración de la ubicación
   void _showGPSDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text('Ubicación desactivada'),
         content: const Text(
-          'La ubicación está desactivada. ¿Quieres activarla?',
+          'Para continuar debes encender la ubicación del dispositivo.',
         ),
         actions: [
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              // Redirigir al usuario a la configuración del GPS
               await Geolocator.openLocationSettings();
+              await Future.delayed(const Duration(seconds: 1));
+              _checkAll(); // 🔁 REVALIDA al volver
             },
-            child: const Text('Ir a configuración'),
+            child: const Text('Encender GPS'),
           ),
         ],
       ),
     );
   }
 
-  // Mostrar el diálogo de configuración si los permisos son permanentemente denegados
   void _showSettingsDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text('Permiso requerido'),
         content: const Text(
@@ -105,12 +102,12 @@ class _PermissionCheckWidgetState extends State<PermissionCheckWidget> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_isLocationGranted) {
+    if (_permissionGranted && _gpsEnabled) {
       return widget.child;
     }
 
     return const Scaffold(
-      body: Center(child: Text('Permiso de ubicación requerido')),
+      body: Center(child: Text('Se requiere ubicación activa para continuar')),
     );
   }
 }
